@@ -36,15 +36,6 @@ module scribe_io
       integer :: varid                         ! NetCDF variable ID
       logical :: file_open                     ! Whether file is currently open
 
-      ! Data storage (pointer to appropriate global array)
-      ! These point to shared arrays, not allocated per-variable
-      !   real(4), pointer :: data_2d(:,:) => null()      ! (horizontal, 1) for 2D
-      !   real(4), pointer :: data_3d(:,:) => null()      ! (vertical, horizontal) for 3D
-
-      ! Module/feature info
-      character(len=20) :: module_name         ! e.g., 'hydro', 'wwm', 'sed'
-      integer :: module_index                  ! Index within module's output array
-
    contains
       procedure :: initialize => var_initialize
       procedure :: assign_scribe => var_assign_scribe
@@ -115,19 +106,6 @@ module scribe_io
    &var2dside(:,:,:),var2dside_gb(:,:),var3dnode(:,:,:),var3dnode_gb(:,:),var3dside(:,:,:),var3dside_gb(:,:), &
    &var3delem(:,:,:),var3delem_gb(:,:)
 
-   ! MPI communication
-!    integer,save,allocatable :: rrqst2(:)
-
-!    ! Time and file management
-!    character(len=1000),save :: out_dir
-!    character(len=48),save :: start_time, isotimestring
-!    integer,save :: start_year,start_month,start_day,iths0
-!    real(rkind), save :: start_hour,utc_start
-
-!    ! 2D output file management (all 2D vars in one file)
-!    integer,save :: ncid_schism_2d
-!    integer,save :: node_dim2,nele_dim2,nedge_dim2,time_dim2,itime_id2
-
    public :: scribe_init
    public :: scribe_step
    public :: scribe_finalize
@@ -138,10 +116,10 @@ contains
    ! OutputVariable Type Methods
    !===============================================================================
 
-   subroutine var_initialize(self, name, id, dim, loc, ncomp, i23d, module_name, mod_idx)
+   subroutine var_initialize(self, name, id, dim, loc, ncomp, i23d)
       class(OutputVariable), intent(inout) :: self
-      character(len=*), intent(in) :: name, module_name
-      integer, intent(in) :: id, dim, loc, ncomp, i23d, mod_idx
+      character(len=*), intent(in) :: name
+      integer, intent(in) :: id, dim, loc, ncomp, i23d
 
       self%name = trim(name)
       self%id = id
@@ -149,8 +127,6 @@ contains
       self%location = loc
       self%num_components = ncomp
       self%i23d_flag = i23d
-      self%module_name = trim(module_name)
-      self%module_index = mod_idx
       self%file_open = .false.
 
       ! Set horizontal size based on location
@@ -169,27 +145,6 @@ contains
       else
          self%vertical_size = nvrt
       endif
-
-      ! Assign data pointer to appropriate shared array
-      !   if (dim == 2) then
-      !      select case(loc)
-      !       case(1)
-      !         self%data_2d => shared_2d_node
-      !       case(2)
-      !         self%data_2d => shared_2d_elem
-      !       case(3)
-      !         self%data_2d => shared_2d_side
-      !      end select
-      !   else  ! 3D
-      !      select case(loc)
-      !       case(1)
-      !         self%data_3d => shared_3d_node
-      !       case(2)
-      !         self%data_3d => shared_3d_elem
-      !       case(3)
-      !         self%data_3d => shared_3d_side
-      !      end select
-      !   endif
 
    end subroutine var_initialize
 
@@ -216,36 +171,7 @@ contains
       ! Only the assigned scribe receives data
       if (myrank_scribe /= self%assigned_scribe) return
 
-      if (self%dimension == 2) then
-         ! Receive 2D data from all compute ranks
-         !  do iproc = 1, nproc_compute
-         !     if (self%location == 1) then  ! node
-         !        call mpi_irecv(var2dnode(:,:,iproc), np(iproc), MPI_REAL4, &
-         !           iproc-1, self%mpi_tag_base, comm_schism, rrqst2(iproc), ierr)
-         !     else if (self%location == 2) then  ! elem
-         !        call mpi_irecv(var2delem(:,:,iproc), ne(iproc), MPI_REAL4, &
-         !           iproc-1, self%mpi_tag_base, comm_schism, rrqst2(iproc), ierr)
-         !     else  ! side
-         !        call mpi_irecv(var2dside(:,:,iproc), ns(iproc), MPI_REAL4, &
-         !           iproc-1, self%mpi_tag_base, comm_schism, rrqst2(iproc), ierr)
-         !     endif
-         !  enddo
-         !  call mpi_waitall(nproc_compute, rrqst2, MPI_STATUSES_IGNORE, ierr)
-
-         !  ! Assemble into global array using index mapping
-         !  do iproc = 1, nproc_compute
-         !     if (self%location == 1) then
-         !        var2dnode_gb(iplg(1:np(iproc),iproc), :) = transpose(var2dnode(:,1:np(iproc),iproc))
-         !     else if (self%location == 2) then
-         !        var2delem_gb(iplg(1:np(iproc),iproc), :) = transpose(var2delem(:,1:np(iproc),iproc))
-         !     else
-         !        var2dside_gb(iplg(1:np(iproc),iproc), :) = transpose(var2dside(:,1:np(iproc),iproc))
-         !     endif
-         !  enddo
-
-      else  ! 3D
-          print *, 'Rank: ', myrank_schism, ' Receiving data for ', self%name
-         !  print *, 'tag = ', self%mpi_tag_base
+      if (self%dimension == 3) then
          ! Receive 3D data from all compute ranks
          do iproc = 1, nproc_compute
             if (self%location == 1) then  ! node
@@ -261,7 +187,6 @@ contains
          enddo
          call mpi_waitall(nproc_compute, rrqst2, MPI_STATUSES_IGNORE, ierr)
          if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall receieve data',ierr)
-          print *, 'Rank: ', myrank_schism, ' Got all data for ', self%name
 
          ! Assemble into global array
          do iproc = 1, nproc_compute
@@ -292,12 +217,7 @@ contains
       ! Only the assigned scribe writes
       if (myrank_scribe /= self%assigned_scribe) return
 
-      if (self%dimension == 2) then
-         ! 2D variables written together to one file - handled separately
-         ! This method not called for 2D vars in current design
-         return
-      else
-         ! 3D variables get individual files
+      if (self%dimension == 3) then
          call write_3d_variable(self, it)
       endif
 
@@ -661,7 +581,6 @@ contains
             endif
          endif
       enddo
-      !   print *, 'Rank: ', myrank_schism, ' finished scribe step'
 
    end subroutine scribe_step
 
@@ -699,6 +618,17 @@ contains
       total = ncount_3dnode+ncount_3delem+ncount_3dside
    end subroutine count_output_variables
 
+   subroutine setup_output_variable(imode,ivs,ivar)
+      integer, intent(in) :: imode,ivs
+      integer, intent(inout) :: ivar !global counters
+      integer :: m
+
+      do m=1,ivs !components
+         ivar=ivar+1
+         call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, imode, 1, 3)
+      end do
+   end
+
    !---------------------------------------------------------------------------
    subroutine build_output_variable_list()
       integer :: ivar, j, icomp
@@ -708,104 +638,121 @@ contains
       ivar = 0
       ivar = ivar + 1
 
-      ! Build 2D hydro variables
-      !   if (iof_hydro(1) /= 0) then
-      !      ivar = ivar + 1
-      !      call output_vars(ivar)%initialize(out_name(ivar), ivar, 2, 1, 1, 1, 'hydro', 1)
-      !   endif
-
-      !   if (iof_hydro(2) /= 0) then
-      !      ivar = ivar + 1
-      !      call output_vars(ivar)%initialize(out_name(ivar), ivar, 2, 1, 1, 1, 'hydro', 2)
-      !      ivar = ivar + 1
-      !      call output_vars(ivar)%initialize(out_name(ivar), ivar, 2, 1, 1, 1, 'hydro', 2)
-      !   endif
-
-      !   ! ... more 2D variables
-
-      ! Build 3D hydro variables
-      do j = 17, 25
-         if (iof_hydro(j) /= 0) then
-            ivar = ivar + 1
-            ! Get variable name from lookup or naming convention
-            ! varname = get_hydro_varname(j)
-            ! print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-            call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, 1, 1, 3, 'hydro', j)
-         endif
-      enddo
-
-      ! 3D vectors
-      if (iof_hydro(26) /= 0) then  ! horizontal velocity
-         do icomp = 1, 2
-            ivar = ivar + 1
-            ! print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-            call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, 1, 1, 3, 'hydro', 26)
-         enddo
-      endif
-
-      ! [Continue for all modules]
-#ifdef USE_WWM
-      ! WWM variables...
-      do j=35,36
-         if(iof_wwm(j)/=0) then
-            ivar = ivar + 1
-            ! print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-            call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, 1, 1, 3, 'wwm', j)
-            !  if(iof_wwm(j)/=0) call scribe_recv_write(it,1,2,itotal,icount_out_name)
-         endif
+!------------------
+      !3D node: hydro
+      do j=17,25
+         if(iof_hydro(j)/=0) call setup_output_variable(1,1,ivar)
       enddo !j
-#endif
+
+      !3D node vectors
+      do j=26,26
+         if(iof_hydro(j)/=0) call setup_output_variable(1,2,ivar)
+      enddo !j
+
+      !Add modules
+#ifdef USE_WWM
+      !Vectors
+      do j=35,36
+         if(iof_wwm(j)/=0) call setup_output_variable(1,2,ivar)
+      enddo !j
+#endif /*USE_WWM*/
+
+#ifdef USE_GEN
+      do j=1,ntrs(3)
+         if(iof_gen(j)==1) call setup_output_variable(1,1,ivar)
+      enddo !j
+#endif /*USE_GEN*/
+
+#ifdef USE_AGE
+      do j=1,ntrs(4)/2
+         if(iof_age(j)==1) call setup_output_variable(1,1,ivar)
+      enddo !j
+#endif /*USE_AGE*/
 
 #ifdef USE_SED
-      ! Sediment variables...
+      do j=1,ntrs(5)
+         if(iof_sed(j+istart_sed_3dnode)==1) call setup_output_variable(1,1,ivar)
+      enddo !j
+
+      itmp5=istart_sed_3dnode+ntrs(5) !index of iof_sed so far
+      if(iof_sed(itmp5+1)==1) call setup_output_variable(1,1,ivar)
+      itmp5=itmp5+1
+#endif /*USE_SED*/
+
+#ifdef USE_ECO
+      do j=1,ntrs(6)
+         if(iof_eco(j)==1) call setup_output_variable(1,1,ivar)
+      enddo !j
+#endif /*USE_ECO*/
+
+#ifdef USE_ICM
+      do j=1,nout_icm_3d(1)
+         call setup_output_variable(1,1,ivar)
+      enddo !j
 #endif
 
-      ! etc.
-      do j=27,27
-         !  if(iof_hydro(j)/=0) call scribe_recv_write(it,3,2,itotal,icount_out_name)
-         if(iof_hydro(j)/=0) then
-            do icomp = 1, 2
-               ivar = ivar + 1
-               !    print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-               call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, 1, 1, 3, 'hydro', j)
-            enddo
-         endif
-      enddo
+#ifdef USE_COSINE
+      do j=1,ntrs(8)
+         if(iof_cos(j)==1) call setup_output_variable(1,1,ivar)
+      enddo !j
+#endif /*USE_COSINE*/
 
+#ifdef USE_FIB
+      do j=1,ntrs(9)
+         if(iof_fib(j)==1) call setup_output_variable(1,1,ivar)
+      enddo !j
+#endif/*USE_FIB*/
+
+#ifdef USE_FABM
+      do j=1,ntrs(11)
+         call setup_output_variable(1,1,ivar)
+      enddo !j
+#endif/*USE_FABM*/
+
+#ifdef USE_ANALYSIS
+      if(iof_ana(14)==1) call setup_output_variable(1,1,ivar)
+#endif
+
+!end of 3D node
+!------------------
+      !3D side: hydro
+      do j=27,27
+         if(iof_hydro(j)/=0) call setup_output_variable(3,2,ivar)
+      enddo !j
+
+      !Add modules
 #ifdef USE_WWM
-      if(iof_wwm(33)/=0) then
-         ! call scribe_recv_write(it,3,1,itotal,icount_out_name)
-         ivar = ivar + 1
-         !  print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-         call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, 1, 1, 3, 'wwm', 33)
-      endif
+      if(iof_wwm(33)/=0) call setup_output_variable(3,1,ivar)
 
       !Vector
-      !   if(iof_wwm(34)/=0) call scribe_recv_write(it,3,2,itotal,icount_out_name)
-      if(iof_wwm(34)/=0) then
-         ! call scribe_recv_write(it,3,1,itotal,icount_out_name)
-         ivar = ivar + 1
-         !  print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-         call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar -1), ivar, 3, 1, 1, 3, 'wwm', 34)
-         ivar = ivar + 1
-         !  print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-         call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, 1, 1, 3, 'wwm', 34)
-      endif
-
-
+      if(iof_wwm(34)/=0) call setup_output_variable(3,2,ivar)
 #endif /*USE_WWM*/
-      do j=28,30
-         if(iof_hydro(j)/=0) then
-            ! call scribe_recv_write(it,2,1,itotal,icount_out_name)
-            ivar = ivar + 1
-            ! print *, 'Initializing variable name = ', out_name(num_2d_vars + ivar - 1), ' ivar = ', ivar
-            call output_vars(ivar - 1)%initialize(out_name(num_2d_vars + ivar - 1), ivar, 3, 2, 1, 3, 'hydro', j)
-         endif
-      enddo !j
-      !   print *, 'iof_hydro = ', iof_hydro
-      !   print *, 'iof_wwm = ', iof_wwm
 
-      !   print *, 'build_output_variable_list final ivar = ', ivar
+#ifdef USE_ANALYSIS
+      do j=6,13
+         if(iof_ana(j)/=0) call setup_output_variable(3,1,ivar)
+      enddo !j
+#endif
+!end of 3D side
+!------------------
+      !3D elem: hydro
+      do j=28,30
+         if(iof_hydro(j)/=0) call setup_output_variable(2,1,ivar)
+      enddo !j
+
+      !Add modules
+#ifdef USE_ICM
+      do j=1,nout_icm_3d(2)
+         call setup_output_variable(2,1,ivar)
+      enddo
+#endif
+
+#ifdef USE_DVD
+      if(iof_dvd(1)==1) call setup_output_variable(2,1,ivar)
+#endif /*USE_DVD*/
+
+      !End of 3D elem
+!------------------
 
    end subroutine build_output_variable_list
 
@@ -824,15 +771,12 @@ contains
       irank=nproc_schism-itotal !last scribe
       if(myrank_schism/=irank) return
 !------------------
-      print *, 'Rank: ', myrank_schism, ' handle_2d_output'
       !2D node (modules already included inside the array)
       do i=1,nproc_compute
          call mpi_irecv(var2dnode(:,:,i),np(i)*ncount_2dnode,MPI_REAL4,i-1,200+itotal,comm_schism,rrqst2(i),ierr)
       enddo !i
       call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
       if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall 2d nodes',ierr)
-
-      print *, 'Rank: ', myrank_schism, ' got 2d node vars'
 
       do i=1,nproc_compute
          var2dnode_gb(iplg(1:np(i),i),:)=transpose(var2dnode(:,1:np(i),i)) !indiced reversed for write
@@ -852,8 +796,6 @@ contains
 !          write(99,*)'elem dry:',myrank_schism,it,i,var2delem(:,1:ne(i),i)
       enddo !i
 
-      print *, 'Rank: ', myrank_schism, ' got 2d elem vars'
-
 !------------------
       !2D side (modules already included inside the array)
       do i=1,nproc_compute
@@ -862,7 +804,6 @@ contains
       call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
       if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall 2d side',ierr)
 
-      print *, 'Rank: ', myrank_schism, ' got 2d side vars'
       do i=1,nproc_compute
          var2dside_gb(islg(1:ns(i),i),:)=transpose(var2dside(:,1:ns(i),i)) !indiced reversed for write
 !          write(98,*)'side dry:',myrank_schism,it,i,var2dside(:,1:ns(i),i)
