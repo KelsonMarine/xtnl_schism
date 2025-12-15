@@ -260,6 +260,7 @@ contains
             endif
          enddo
          call mpi_waitall(nproc_compute, rrqst2, MPI_STATUSES_IGNORE, ierr)
+         if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall receieve data',ierr)
          !  print *, 'Rank: ', myrank_schism, ' Got all data for ', self%name
 
          ! Assemble into global array
@@ -829,6 +830,7 @@ contains
          call mpi_irecv(var2dnode(:,:,i),np(i)*ncount_2dnode,MPI_REAL4,i-1,200+itotal,comm_schism,rrqst2(i),ierr)
       enddo !i
       call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
+      if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall 2d nodes',ierr)
 
       !   print *, 'Rank: ', myrank_schism, ' got 2d node vars'
 
@@ -844,6 +846,7 @@ contains
          call mpi_irecv(var2delem(:,:,i),ne(i)*ncount_2delem,MPI_REAL4,i-1,701,comm_schism,rrqst2(i),ierr)
       enddo !i
       call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
+      if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall 2d elems',ierr)
       do i=1,nproc_compute
          var2delem_gb(ielg(1:ne(i),i),:)=transpose(var2delem(:,1:ne(i),i)) !indiced reversed for write
 !          write(99,*)'elem dry:',myrank_schism,it,i,var2delem(:,1:ne(i),i)
@@ -855,6 +858,7 @@ contains
          call mpi_irecv(var2dside(:,:,i),ns(i)*ncount_2dside,MPI_REAL4,i-1,702,comm_schism,rrqst2(i),ierr)
       enddo !i
       call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
+      if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall 2d side',ierr)
       do i=1,nproc_compute
          var2dside_gb(islg(1:ns(i),i),:)=transpose(var2dside(:,1:ns(i),i)) !indiced reversed for write
 !          write(98,*)'side dry:',myrank_schism,it,i,var2dside(:,1:ns(i),i)
