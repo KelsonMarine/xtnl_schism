@@ -173,6 +173,7 @@
 !Tsinghua group: 0821...
       real(rkind) :: dtrdz,apTpxy_up,apTpxy_do,epsffs,epsfbot !8022 +epsffs,epsfbot
 !0821...
+      real(rkind) :: wtime_start
 
 !     Output handles
       character(len=72) :: it_char
@@ -364,6 +365,7 @@
 
 !      do it=iths+1,ntime
 
+      wtime_start=mpi_wtime() !Forcing preparation section
 #ifdef INCLUDE_TIMING
       wtmp1=mpi_wtime() !Forcing preparation section
 #endif
@@ -10724,12 +10726,16 @@
       wtimer(13,1)=wtimer(13,1)+wtmp2-wtmp1
 #endif
 
+      call parallel_barrier !synchronize before starting next time step
+
       if(myrank==0) then
-        write(16,'(a,i12,a,f20.6)') 'TIME STEP= ',it,';  TIME= ',time
+        wtmp2=mpi_wtime()
+
+        write(16,'(a,f20.6,a)') 'Step took ', (wtmp2 - wtime_start), 's'
+        write(16,'(a,i12,a,f20.6,a,f20.6,a)') 'TIME STEP= ',it,';  TIME= ',time,' Step took ', (wtmp2 - wtime_start), 's'
 !'
         call flush(16) !flush "mirror.out" for every time step
       endif
-      call parallel_barrier !synchronize before starting next time step
 
 
 !-------------------------------------------------------------------------------
