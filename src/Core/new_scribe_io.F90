@@ -244,7 +244,7 @@ contains
          !  enddo
 
       else  ! 3D
-         !  print *, 'Rank: ', myrank_schism, ' Receiving data for ', self%name
+          print *, 'Rank: ', myrank_schism, ' Receiving data for ', self%name
          !  print *, 'tag = ', self%mpi_tag_base
          ! Receive 3D data from all compute ranks
          do iproc = 1, nproc_compute
@@ -261,7 +261,7 @@ contains
          enddo
          call mpi_waitall(nproc_compute, rrqst2, MPI_STATUSES_IGNORE, ierr)
          if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall receieve data',ierr)
-         !  print *, 'Rank: ', myrank_schism, ' Got all data for ', self%name
+          print *, 'Rank: ', myrank_schism, ' Got all data for ', self%name
 
          ! Assemble into global array
          do iproc = 1, nproc_compute
@@ -824,7 +824,7 @@ contains
       irank=nproc_schism-itotal !last scribe
       if(myrank_schism/=irank) return
 !------------------
-      !   print *, 'Rank: ', myrank_schism, ' handle_2d_output'
+      print *, 'Rank: ', myrank_schism, ' handle_2d_output'
       !2D node (modules already included inside the array)
       do i=1,nproc_compute
          call mpi_irecv(var2dnode(:,:,i),np(i)*ncount_2dnode,MPI_REAL4,i-1,200+itotal,comm_schism,rrqst2(i),ierr)
@@ -832,7 +832,7 @@ contains
       call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
       if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall 2d nodes',ierr)
 
-      !   print *, 'Rank: ', myrank_schism, ' got 2d node vars'
+      print *, 'Rank: ', myrank_schism, ' got 2d node vars'
 
       do i=1,nproc_compute
          var2dnode_gb(iplg(1:np(i),i),:)=transpose(var2dnode(:,1:np(i),i)) !indiced reversed for write
@@ -852,6 +852,8 @@ contains
 !          write(99,*)'elem dry:',myrank_schism,it,i,var2delem(:,1:ne(i),i)
       enddo !i
 
+      print *, 'Rank: ', myrank_schism, ' got 2d elem vars'
+
 !------------------
       !2D side (modules already included inside the array)
       do i=1,nproc_compute
@@ -859,6 +861,8 @@ contains
       enddo !i
       call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
       if(ierr/=MPI_SUCCESS) call parallel_abort('new_scribe: mpi_waitall 2d side',ierr)
+
+      print *, 'Rank: ', myrank_schism, ' got 2d side vars'
       do i=1,nproc_compute
          var2dside_gb(islg(1:ns(i),i),:)=transpose(var2dside(:,1:ns(i),i)) !indiced reversed for write
 !          write(98,*)'side dry:',myrank_schism,it,i,var2dside(:,1:ns(i),i)
