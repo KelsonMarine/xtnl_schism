@@ -2117,7 +2117,7 @@
         enddo
 
       if(myrank==0) then
-        write(16,*) 'Determined number of files ', (mpi_wtime() - wtime_start), 's'
+        write(16,*) 'Determined number of files ', (mpi_wtime() - start_time), 's'
         call flush(16) !flush "mirror.out" for every time step
       endif
 
@@ -2132,7 +2132,7 @@
         call get_dims (file_name, nx, ny)
 
         if(myrank==0) then
-          write(16,*) 'got dims for first file ', (mpi_wtime() - wtime_start), 's'
+          write(16,*) 'got dims for first file ', (mpi_wtime() - start_time), 's'
           call flush(16) !flush "mirror.out" for every time step
         endif
 
@@ -2149,7 +2149,7 @@
           endif
 
           if(myrank==0) then
-            write(16,*) 'got dims for file num', file_num, (mpi_wtime() - wtime_start), 's'
+            write(16,*) 'got dims for file num', file_num, (mpi_wtime() - start_time), 's'
             call flush(16)
           endif
 
@@ -2164,7 +2164,7 @@
           endif
 
           if(myrank==0) then
-            write(16,*) 'got file times for file num', file_num, (mpi_wtime() - wtime_start), 's'
+            write(16,*) 'got file times for file num', file_num, (mpi_wtime() - start_time), 's'
             call flush(16)
           endif
 
@@ -2210,13 +2210,14 @@
 
               endif
 
-            if(myrank==0) then
-              write(16,*) 'checked file times for file ', file_num, (mpi_wtime() - wtime_start), 's'
-              call flush(16)
-            endif
 
             enddo
 
+          endif
+
+          if(myrank==0) then
+            write(16,*) 'checked file times for file ', file_num, (mpi_wtime() - start_time), 's'
+            call flush(16)
           endif
 
         enddo
