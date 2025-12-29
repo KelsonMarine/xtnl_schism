@@ -558,6 +558,11 @@
       endif
 
       CALL READ_SPATIAL_GRID_TOTAL
+      
+      if(myrank==0) then
+        write(16,*) 'read_spatial_grid_total ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
 
 #ifndef MPI_PARALL_GRID
       MNP=NP_TOTAL
@@ -597,6 +602,11 @@
 #  endif
       CALL INIT_ARRAYS
 
+      if(myrank==0) then
+        write(16,*) 'init arrays ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
+
       DEP  = DEP8
       IF (ics .eq. 2) THEN
         XP = XLON*RADDEG
@@ -611,7 +621,7 @@
 #endif
 
       if(myrank==0) then
-        write(16,*) 'init arrays ', (mpi_wtime() - start_time), 's'
+        write(16,*) 'collected iplg, oned scatter array ', (mpi_wtime() - start_time), 's'
         call flush(16) !flush "mirror.out" for every time step
       endif
 
