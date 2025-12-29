@@ -2086,6 +2086,9 @@
 
         use schism_glbl, only : rkind,in_dir,len_in_dir
         use schism_msgp, only : myrank
+
+        include 'mpif.h'
+
         implicit none
 
         character, intent(in) ::  dataset_name*50
@@ -2102,7 +2105,7 @@
         integer, parameter :: max_file_times = 1000 !max. # of time records with each file
         real(rkind) test_time, file_times(max_file_times)
         integer i_time, repeat_num
-        real(rkind) :: start_time
+        real(rkind) start_time
 
         start_time = mpi_wtime()
 
