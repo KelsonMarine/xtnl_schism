@@ -1498,7 +1498,7 @@
       IF (MULTIPLE_IN_BOUND) THEN
         CALL READ_NETCDF_WW3_SINGLE(IFILE,IT)
       ELSE
-        allocate(ARR_send_recv(5*NDX_BND*NDY_BND))
+        allocate(ARR_send_recv(5*NDX_BND*NDY_BND), stat=istat)
         IF (istat/=0) CALL WWM_ABORT('wwm_bdcons, allocate error 16')
         IF (myrank .eq. 0) THEN
           CALL READ_NETCDF_WW3_SINGLE(IFILE,IT)
