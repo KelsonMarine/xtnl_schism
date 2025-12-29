@@ -2102,6 +2102,9 @@
         integer, parameter :: max_file_times = 1000 !max. # of time records with each file
         real(rkind) test_time, file_times(max_file_times)
         integer i_time, repeat_num
+        real(rkind) :: start_time
+
+        start_time = mpi_wtime()
 
 ! determine how many files there are
         file_num = 0
@@ -2113,6 +2116,11 @@
           num_files = file_num
         enddo
 
+      if(myrank==0) then
+        write(16,*) 'Determined number of files ', (mpi_wtime() - wtime_start), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
+
 ! ensure that num_files doesn't exceed max_files
         if (num_files .gt. max_files) then
           call halt_error ('num_files exceeds max_files!')
@@ -2122,6 +2130,11 @@
         file_num = 1
         file_name = get_file_name(dataset_name, file_num)
         call get_dims (file_name, nx, ny)
+
+        if(myrank==0) then
+          write(16,*) 'got dims for first file ', (mpi_wtime() - wtime_start), 's'
+          call flush(16) !flush "mirror.out" for every time step
+        endif
 
 ! loop over files
         do file_num = 1, num_files
@@ -2135,6 +2148,11 @@
             call halt_error ('nx and/or ny mismatch!')
           endif
 
+          if(myrank==0) then
+            write(16,*) 'got dims for file num', file_num, (mpi_wtime() - wtime_start), 's'
+            call flush(16)
+          endif
+
 ! get the times in this file
           call get_file_times (file_name, file_times, &
      &                         jdate_for_file(file_num), & !Julian day for base_date
@@ -2143,6 +2161,11 @@
 ! check that num_file_times does not exceed max_times
           if (num_file_times .gt. max_times) then
             call halt_error ('num_file_times exceeds max_times!')
+          endif
+
+          if(myrank==0) then
+            write(16,*) 'got file times for file num', file_num, (mpi_wtime() - wtime_start), 's'
+            call flush(16)
           endif
 
 ! if this is the first file, then store all file_times in the overall
@@ -2186,6 +2209,11 @@
                 time_num_for_time(num_times) = i_time
 
               endif
+
+            if(myrank==0) then
+              write(16,*) 'checked file times for file ', file_num, (mpi_wtime() - wtime_start), 's'
+              call flush(16)
+            endif
 
             enddo
 
