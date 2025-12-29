@@ -512,12 +512,20 @@
 !
       INTEGER        :: i, j, IP
       REAL(rkind)    :: TIME1, TIME2
+      real(rkind)    :: start_time
       
+      start_time = mpi_wtime()
+
 #ifdef TIMINGS
       CALL WAV_MY_WTIME(TIME1)
 #endif
      
       CALL SET_WWMINPULNML 
+
+      if(myrank==0) then
+        write(16,*) 'set_wwminpunml ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
 
 ! variable nx1 should be initialized in SCHISM code, not here!
 #if defined MPI_PARALL_GRID && !defined PDLIB
@@ -544,6 +552,10 @@
         FLUSH(STAT%FHNDL)
       END IF
 
+      if(myrank==0) then
+        write(16,*) 'read_wwminput ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
 
       CALL READ_SPATIAL_GRID_TOTAL
 
@@ -597,6 +609,12 @@
       CALL COLLECT_ALL_IPLG
       CALL SETUP_ONED_SCATTER_ARRAY
 #endif
+
+      if(myrank==0) then
+        write(16,*) 'init arrays ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
+
       WLDEP=DEP
       IF (CART2LATLON) THEN
         XP = XP / 111111.
@@ -612,6 +630,10 @@
         WRITE(STAT%FHNDL,'("+TRACE...",A)') 'INIT SPATIAL GRID'
         FLUSH(STAT%FHNDL)
       END IF      
+      if(myrank==0) then
+        write(16,*) 'init spatial grid ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
       !
       ! Main inits done, now the secondary ones.
       !
@@ -650,6 +672,11 @@
         FLUSH(STAT%FHNDL)
       END IF
 
+      if(myrank==0) then
+        write(16,*) 'set depth pointer ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
+
       IF (WRITESTATFLAG == 1) THEN
         WRITE(STAT%FHNDL,'("+TRACE...",A)') 'INITIALIZE SPECTRAL GRID'
         FLUSH(STAT%FHNDL)
@@ -670,6 +697,11 @@
         FLUSH(STAT%FHNDL)
       END IF
       CALL SET_IOBPD
+
+      if(myrank==0) then
+        write(16,*) 'init boundary pointer ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
 
       IF (DIMMODE .EQ. 2) THEN
         IF (WRITESTATFLAG == 1) THEN
@@ -739,6 +771,11 @@
       CALL SETSHALLOW
       CALL SET_HMAX
 
+      if(myrank==0) then
+        write(16,*) 'compute wave parameter', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
+
       IF ( (MESIN .EQ. 1 .OR. MESDS .EQ. 1) .AND. SMETHOD .GT. 0 .AND. (LSOURCESWAM .OR. LSOURCESWWIII)) THEN
         CALL WWM_ABORT('DO NOT USE MESIN = 1 OR MESDS = 1 together with LSOURCESWAM .OR. LSOURCESWWIII')
       END IF
@@ -767,6 +804,11 @@
       END IF
       CALL INITIAL_CONDITION
 !      CALL Print_SumAC2("After INITIAL_CONDITION")
+
+      if(myrank==0) then
+        write(16,*) 'initial condition', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
 
       IF (WRITESTATFLAG == 1) THEN
         WRITE(STAT%FHNDL,'("+TRACE...",A)') 'INIT STATION OUTPUT'
@@ -830,6 +872,10 @@
 #ifdef TIMINGS
       CALL WAV_MY_WTIME(TIME2)
 #endif
+      if(myrank==0) then
+        write(16,*) 'finished wwm init', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
 
 #if defined SCHISM
       IF (MSC_SCHISM .NE. MSC .OR. MDC_SCHISM .NE. MDC) THEN
