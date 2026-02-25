@@ -541,6 +541,18 @@
       enddo
 #endif
 
+         BND%FHNDL  = STARTHNDL + 1
+         WIN%FHNDL  = STARTHNDL + 2
+         CUR%FHNDL  = STARTHNDL + 3
+         WAT%FHNDL  = STARTHNDL + 4
+         WAV%FHNDL  = STARTHNDL + 5
+         CHK%FHNDL  = STARTHNDL + 6
+       HOTIN%FHNDL  = STARTHNDL + 7
+      HOTOUT%FHNDL  = STARTHNDL + 8
+         INP%FHNDL  = STARTHNDL + 9
+         GRD%FHNDL  = STARTHNDL + 10
+      GRDCOR%FHNDL  = STARTHNDL + 11
+
       CALL READ_WWMINPUT
       IF (WRITESTATFLAG == 1) THEN
         WRITE(STAT%FHNDL,'("+TRACE...",A)') 'DONE READING NAMELIST'
@@ -1359,17 +1371,17 @@
 !
 !2do ... dinstinguish between binary and ascii stuff ...
 !
-             BND%FHNDL  = STARTHNDL + 1
-             WIN%FHNDL  = STARTHNDL + 2
-             CUR%FHNDL  = STARTHNDL + 3
-             WAT%FHNDL  = STARTHNDL + 4
-             WAV%FHNDL  = STARTHNDL + 5
-             CHK%FHNDL  = STARTHNDL + 6
-           HOTIN%FHNDL  = STARTHNDL + 7
-          HOTOUT%FHNDL  = STARTHNDL + 8
-             INP%FHNDL  = STARTHNDL + 9
-             GRD%FHNDL  = STARTHNDL + 10
-          GRDCOR%FHNDL  = STARTHNDL + 11
+          !    BND%FHNDL  = STARTHNDL + 1
+          !    WIN%FHNDL  = STARTHNDL + 2
+          !    CUR%FHNDL  = STARTHNDL + 3
+          !    WAT%FHNDL  = STARTHNDL + 4
+          !    WAV%FHNDL  = STARTHNDL + 5
+          !    CHK%FHNDL  = STARTHNDL + 6
+          !  HOTIN%FHNDL  = STARTHNDL + 7
+          ! HOTOUT%FHNDL  = STARTHNDL + 8
+          !    INP%FHNDL  = STARTHNDL + 9
+          !    GRD%FHNDL  = STARTHNDL + 10
+          ! GRDCOR%FHNDL  = STARTHNDL + 11
 
            IF (LQSTEA) QSTEA%FHNDL  = STARTHNDL + 12
 
