@@ -553,6 +553,10 @@
          GRD%FHNDL  = STARTHNDL + 10
       GRDCOR%FHNDL  = STARTHNDL + 11
 
+      CALL TEST_FILE_EXIST_DIE("Missing input file : ", INP%FNAME)
+      OPEN( INP%FHNDL,      FILE = TRIM(INP%FNAME))
+      OPEN( CHK%FHNDL,      FILE = TRIM(CHK%FNAME))
+
       CALL READ_WWMINPUT
       IF (WRITESTATFLAG == 1) THEN
         WRITE(STAT%FHNDL,'("+TRACE...",A)') 'DONE READING NAMELIST'
@@ -1463,9 +1467,9 @@
 #ifdef MPIP_PARALL_GRID
          ENDIF
 #endif
-         CALL TEST_FILE_EXIST_DIE("Missing input file : ", INP%FNAME)
-         OPEN( INP%FHNDL,      FILE = TRIM(INP%FNAME))
-         OPEN( CHK%FHNDL,      FILE = TRIM(CHK%FNAME))
+        !  CALL TEST_FILE_EXIST_DIE("Missing input file : ", INP%FNAME)
+        !  OPEN( INP%FHNDL,      FILE = TRIM(INP%FNAME))
+        !  OPEN( CHK%FHNDL,      FILE = TRIM(CHK%FNAME))
          IF (LQSTEA) OPEN( QSTEA%FHNDL,    FILE = TRIM(QSTEA%FNAME))
 #if defined DEBUG && defined IOBPDOUT
          OPEN( IOBPOUT%FHNDL,  FILE = TRIM(IOBPOUT%FNAME))
