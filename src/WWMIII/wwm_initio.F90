@@ -553,9 +553,11 @@
          GRD%FHNDL  = STARTHNDL + 10
       GRDCOR%FHNDL  = STARTHNDL + 11
 
-      CALL TEST_FILE_EXIST_DIE("Missing input file : ", INP%FNAME)
-      OPEN( INP%FHNDL,      FILE = TRIM(INP%FNAME))
-      OPEN( CHK%FHNDL,      FILE = TRIM(CHK%FNAME))
+      CALL INIT_FILE_HANDLES
+      IF (WRITESTATFLAG == 1) THEN
+        WRITE(STAT%FHNDL,'("+TRACE...",A)') 'DONE SETTING FHNDL'
+        FLUSH(STAT%FHNDL)
+      END IF
 
       CALL READ_WWMINPUT
       IF (WRITESTATFLAG == 1) THEN
@@ -563,11 +565,47 @@
         FLUSH(STAT%FHNDL)
       END IF
 
-      CALL INIT_FILE_HANDLES
-      IF (WRITESTATFLAG == 1) THEN
-        WRITE(STAT%FHNDL,'("+TRACE...",A)') 'DONE SETTING FHNDL'
-        FLUSH(STAT%FHNDL)
+#ifndef MPI_PARALL_GRID
+      open(DBG%FHNDL,file='wwmdbg.out',status='unknown') !non-fatal errors
+      open(STAT%FHNDL,file='wwmstat.out',status='unknown') !non-fatal errors
+      open(WINDBG%FHNDL,file='windbg.out',status='unknown') !non-fatal errors
+      open(SRCDBG%FHNDL,file='srcdbg.out',status='unknown') !non-fatal errors
+#else
+# ifdef SCHISM
+      IF (WRITEDBGFLAG == 1) THEN
+        FDB  ='wwmdbg_000000'
+        LFDB =len_trim(FDB)
+        write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
+        open(DBG%FHNDL,file='outputs/'//fdb,status='replace')
       END IF
+      IF (WRITESTATFLAG == 1) THEN
+        FDB  ='wwmstat_000000'
+        LFDB =len_trim(FDB)
+        write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
+        open(STAT%FHNDL,file='outputs/'//fdb,status='replace') 
+      END IF
+      IF (WRITEWINDBGFLAG == 1) THEN
+        FDB  ='windbg_000000'
+        LFDB =len_trim(FDB)
+        write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
+        open(WINDBG%FHNDL,file='outputs/'//fdb,status='replace') 
+      END IF
+# else
+      FDB  ='wwmdbg_0000'
+      LFDB =len_trim(FDB)
+      write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
+      open(DBG%FHNDL,file=fdb,status='replace') 
+      FDB  ='wwmstat_0000'
+      LFDB =len_trim(FDB)
+      write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
+      open(STAT%FHNDL,file=fdb,status='replace') 
+      FDB  ='windbg_0000'
+      LFDB =len_trim(FDB)
+      write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
+      open(WINDBG%FHNDL,file=fdb,status='replace')
+# endif
+#endif
+
 
       if(myrank==0) then
         write(16,*) 'read_wwminput ', (mpi_wtime() - start_time), 's'
@@ -1375,17 +1413,17 @@
 !
 !2do ... dinstinguish between binary and ascii stuff ...
 !
-          !    BND%FHNDL  = STARTHNDL + 1
-          !    WIN%FHNDL  = STARTHNDL + 2
-          !    CUR%FHNDL  = STARTHNDL + 3
-          !    WAT%FHNDL  = STARTHNDL + 4
-          !    WAV%FHNDL  = STARTHNDL + 5
-          !    CHK%FHNDL  = STARTHNDL + 6
-          !  HOTIN%FHNDL  = STARTHNDL + 7
-          ! HOTOUT%FHNDL  = STARTHNDL + 8
-          !    INP%FHNDL  = STARTHNDL + 9
-          !    GRD%FHNDL  = STARTHNDL + 10
-          ! GRDCOR%FHNDL  = STARTHNDL + 11
+             BND%FHNDL  = STARTHNDL + 1
+             WIN%FHNDL  = STARTHNDL + 2
+             CUR%FHNDL  = STARTHNDL + 3
+             WAT%FHNDL  = STARTHNDL + 4
+             WAV%FHNDL  = STARTHNDL + 5
+             CHK%FHNDL  = STARTHNDL + 6
+           HOTIN%FHNDL  = STARTHNDL + 7
+          HOTOUT%FHNDL  = STARTHNDL + 8
+             INP%FHNDL  = STARTHNDL + 9
+             GRD%FHNDL  = STARTHNDL + 10
+          GRDCOR%FHNDL  = STARTHNDL + 11
 
            IF (LQSTEA) QSTEA%FHNDL  = STARTHNDL + 12
 
@@ -1401,46 +1439,46 @@
 
          IU06           = STAT%FHNDL
 
-#ifndef MPI_PARALL_GRID
-         open(DBG%FHNDL,file='wwmdbg.out',status='unknown') !non-fatal errors
-         open(STAT%FHNDL,file='wwmstat.out',status='unknown') !non-fatal errors
-         open(WINDBG%FHNDL,file='windbg.out',status='unknown') !non-fatal errors
-         open(SRCDBG%FHNDL,file='srcdbg.out',status='unknown') !non-fatal errors
-#else
-# ifdef SCHISM
-         IF (WRITEDBGFLAG == 1) THEN
-           FDB  ='wwmdbg_000000'
-           LFDB =len_trim(FDB)
-           write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
-           open(DBG%FHNDL,file='outputs/'//fdb,status='replace')
-         END IF
-         IF (WRITESTATFLAG == 1) THEN
-           FDB  ='wwmstat_000000'
-           LFDB =len_trim(FDB)
-           write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
-           open(STAT%FHNDL,file='outputs/'//fdb,status='replace') 
-         END IF
-         IF (WRITEWINDBGFLAG == 1) THEN
-           FDB  ='windbg_000000'
-           LFDB =len_trim(FDB)
-           write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
-           open(WINDBG%FHNDL,file='outputs/'//fdb,status='replace') 
-         END IF
-# else
-         FDB  ='wwmdbg_0000'
-         LFDB =len_trim(FDB)
-         write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
-         open(DBG%FHNDL,file=fdb,status='replace') 
-         FDB  ='wwmstat_0000'
-         LFDB =len_trim(FDB)
-         write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
-         open(STAT%FHNDL,file=fdb,status='replace') 
-         FDB  ='windbg_0000'
-         LFDB =len_trim(FDB)
-         write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
-         open(WINDBG%FHNDL,file=fdb,status='replace')
-# endif
-#endif
+! #ifndef MPI_PARALL_GRID
+!          open(DBG%FHNDL,file='wwmdbg.out',status='unknown') !non-fatal errors
+!          open(STAT%FHNDL,file='wwmstat.out',status='unknown') !non-fatal errors
+!          open(WINDBG%FHNDL,file='windbg.out',status='unknown') !non-fatal errors
+!          open(SRCDBG%FHNDL,file='srcdbg.out',status='unknown') !non-fatal errors
+! #else
+! # ifdef SCHISM
+!          IF (WRITEDBGFLAG == 1) THEN
+!            FDB  ='wwmdbg_000000'
+!            LFDB =len_trim(FDB)
+!            write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
+!            open(DBG%FHNDL,file='outputs/'//fdb,status='replace')
+!          END IF
+!          IF (WRITESTATFLAG == 1) THEN
+!            FDB  ='wwmstat_000000'
+!            LFDB =len_trim(FDB)
+!            write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
+!            open(STAT%FHNDL,file='outputs/'//fdb,status='replace') 
+!          END IF
+!          IF (WRITEWINDBGFLAG == 1) THEN
+!            FDB  ='windbg_000000'
+!            LFDB =len_trim(FDB)
+!            write(FDB(LFDB-5:LFDB),'(i6.6)') MYRANK
+!            open(WINDBG%FHNDL,file='outputs/'//fdb,status='replace') 
+!          END IF
+! # else
+!          FDB  ='wwmdbg_0000'
+!          LFDB =len_trim(FDB)
+!          write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
+!          open(DBG%FHNDL,file=fdb,status='replace') 
+!          FDB  ='wwmstat_0000'
+!          LFDB =len_trim(FDB)
+!          write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
+!          open(STAT%FHNDL,file=fdb,status='replace') 
+!          FDB  ='windbg_0000'
+!          LFDB =len_trim(FDB)
+!          write(FDB(LFDB-3:LFDB),'(i4.4)') MYRANK
+!          open(WINDBG%FHNDL,file=fdb,status='replace')
+! # endif
+! #endif
 
          IF (WRITEDBGFLAG == 1) THEN
            WRITE(DBG%FHNDL, *) 'THR=', THR
@@ -1467,9 +1505,9 @@
 #ifdef MPIP_PARALL_GRID
          ENDIF
 #endif
-        !  CALL TEST_FILE_EXIST_DIE("Missing input file : ", INP%FNAME)
-        !  OPEN( INP%FHNDL,      FILE = TRIM(INP%FNAME))
-        !  OPEN( CHK%FHNDL,      FILE = TRIM(CHK%FNAME))
+         CALL TEST_FILE_EXIST_DIE("Missing input file : ", INP%FNAME)
+         OPEN( INP%FHNDL,      FILE = TRIM(INP%FNAME))
+         OPEN( CHK%FHNDL,      FILE = TRIM(CHK%FNAME))
          IF (LQSTEA) OPEN( QSTEA%FHNDL,    FILE = TRIM(QSTEA%FNAME))
 #if defined DEBUG && defined IOBPDOUT
          OPEN( IOBPOUT%FHNDL,  FILE = TRIM(IOBPOUT%FNAME))
