@@ -1038,6 +1038,9 @@ contains
          if(iret/=NF90_NOERR) call parallel_abort('nc_writeout2D: put 2D elem var')
       enddo !i
 
+      iret = nf90_sync(ncid_schism_2d)
+      if(iret/=NF90_NOERR) call parallel_abort('nc_writeout2D: sync dataset to disk')
+
       !Close the stack
       if(mod(it,ihfskip)==0) iret=nf90_close(ncid_schism_2d)
 
