@@ -2111,12 +2111,22 @@
       REAL(rkind) :: Sum_new, Sum_prev, eVal, DiffNew, DiffOld
       INTEGER     :: IS, ID, ID1, ID2, IP, J, idx, nbITer, TheVal, itmp
       INTEGER     :: I, K, IP_ADJ, IADJ, JDX, is_converged(1)
+      INTEGER     :: is_converged_local
       LOGICAL     :: LCONVERGED(MNP)
+      LOGICAL     :: dbg_jacobi, dbg_iter
 
 #ifdef TIMINGS
       CALL WAV_MY_WTIME(TIME1)
 #endif
       p_is_converged=0
+      dbg_jacobi = (WRITEDBGFLAG == 1)
+      IF (dbg_jacobi) THEN
+        WRITE(DBG%FHNDL,*) 'JACDBG ENTER rank=', myrank, ' aspar_lvl=', ASPAR_LOCAL_LEVEL,  &
+     &      ' jgs_chkconv=', JGS_CHKCONV, ' block_gs=', BLOCK_GAUSS_SEIDEL,                  &
+     &      ' l_solver_norm=', L_SOLVER_NORM, ' np_res=', NP_RES, ' np_total=', NP_TOTAL,    &
+     &      ' maxiter=', MAXITER, ' pmin=', PMIN, ' jgs_thr=', JGS_DIFF_SOLVERTHR
+        FLUSH(DBG%FHNDL)
+      END IF
       IF (ASPAR_LOCAL_LEVEL .le. 1) THEN
         CALL EIMPS_ASPAR_BLOCK(ASPAR_JAC)
       END IF
@@ -2155,6 +2165,11 @@
       DO
         is_converged(1) = 0
         JDX=0
+        dbg_iter = dbg_jacobi .AND. ((nbiter .le. 10) .OR. (MOD(nbiter,25) .eq. 0))
+        IF (dbg_iter) THEN
+          WRITE(DBG%FHNDL,*) 'JACDBG ITER_BEGIN rank=', myrank, ' iter=', nbiter
+          FLUSH(DBG%FHNDL)
+        END IF
 #ifdef DEBUG_ITERATION_LOOP
         FieldOut1 = 0
 #endif
@@ -2442,24 +2457,53 @@
 !             FLUSH(850+myrank)
 !          ENDIF
         END DO
+        is_converged_local = is_converged(1)
+        IF (dbg_iter) THEN
+          WRITE(DBG%FHNDL,*) 'JACDBG AFTER_SWEEP rank=', myrank, ' iter=', nbiter, &
+     &      ' local_is_converged=', is_converged_local
+          FLUSH(DBG%FHNDL)
+        END IF
         IF (JGS_CHKCONV) THEN
+          IF (dbg_iter) THEN
+            WRITE(DBG%FHNDL,*) 'JACDBG BEFORE_CONV_ALLREDUCE rank=', myrank, ' iter=', nbiter, &
+     &        ' local=', is_converged_local
+            FLUSH(DBG%FHNDL)
+          END IF
 #ifdef MPI_PARALL_GRID
           CALL MPI_ALLREDUCE(is_converged(1), itmp, 1, itype, MPI_SUM, COMM, ierr)
           is_converged(1) = itmp
 #endif
+          IF (dbg_iter) THEN
+            WRITE(DBG%FHNDL,*) 'JACDBG AFTER_CONV_ALLREDUCE rank=', myrank, ' iter=', nbiter, &
+     &        ' global=', is_converged(1), ' ierr=', ierr
+            FLUSH(DBG%FHNDL)
+          END IF
           p_is_converged = (real(np_total) - real(is_converged(1)))/real(np_total) * 100.
           !if (myrank == 0) write(12,'(3I10,2F20.10)') nbiter, is_converged, np_total, p_is_converged, jgs_diff_solverthr
         ENDIF 
 
 #ifdef MPI_PARALL_GRID
+        IF (dbg_iter) THEN
+          WRITE(DBG%FHNDL,*) 'JACDBG BEFORE_EXCHANGE rank=', myrank, ' iter=', nbiter, &
+     &      ' block_gs=', BLOCK_GAUSS_SEIDEL
+          FLUSH(DBG%FHNDL)
+        END IF
         IF (BLOCK_GAUSS_SEIDEL) THEN
           CALL EXCHANGE_P4D_WWM(AC2)
         ELSE
           CALL EXCHANGE_P4D_WWM(U_JACOBI)
         END IF
+        IF (dbg_iter) THEN
+          WRITE(DBG%FHNDL,*) 'JACDBG AFTER_EXCHANGE rank=', myrank, ' iter=', nbiter, ' ierr=', ierr
+          FLUSH(DBG%FHNDL)
+        END IF
 #endif
         IF (.NOT. BLOCK_GAUSS_SEIDEL) THEN
           AC2 = U_JACOBI
+          IF (dbg_iter) THEN
+            WRITE(DBG%FHNDL,*) 'JACDBG AFTER_COPY_U2AC2 rank=', myrank, ' iter=', nbiter
+            FLUSH(DBG%FHNDL)
+          END IF
         ENDIF
 #ifdef DEBUG_ITERATION_LOOP
         iIter=nbIter + 1
@@ -2476,6 +2520,10 @@
         !
         nbIter=nbIter+1
         IF (nbiter .eq. maxiter) THEN
+          IF (dbg_jacobi) THEN
+            WRITE(DBG%FHNDL,*) 'JACDBG EXIT_MAXITER rank=', myrank, ' iter=', nbiter, ' maxiter=', maxiter
+            FLUSH(DBG%FHNDL)
+          END IF
           EXIT
         ENDIF
         !
@@ -2483,12 +2531,23 @@
         !
         IF (JGS_CHKCONV) THEN
 !          write(*,*) p_is_converged, nbIter, is_converged
-          IF (p_is_converged .le. pmin) EXIT
+          IF (p_is_converged .le. pmin) THEN
+            IF (dbg_jacobi) THEN
+              WRITE(DBG%FHNDL,*) 'JACDBG EXIT_PMIN rank=', myrank, ' iter=', nbiter, &
+     &            ' p_is_converged=', p_is_converged, ' pmin=', pmin
+              FLUSH(DBG%FHNDL)
+            END IF
+            EXIT
+          END IF
         ENDIF
         !
         ! Check via the norm
         !
         IF (L_SOLVER_NORM) THEN
+          IF (dbg_iter) THEN
+            WRITE(DBG%FHNDL,*) 'JACDBG ENTER_NORM_CHECK rank=', myrank, ' iter=', nbiter
+            FLUSH(DBG%FHNDL)
+          END IF
           Norm_L2=0
           DO IP=1,NP_RES
             IF (ASPAR_LOCAL_LEVEL .eq. 0) THEN
@@ -2650,19 +2709,42 @@
             Norm_LINF = max(Norm_LINF, abs(eSum))
           END DO
 #ifdef MPI_PARALL_GRID
+          IF (dbg_iter) THEN
+            WRITE(DBG%FHNDL,*) 'JACDBG BEFORE_NORM_ALLREDUCE rank=', myrank, ' iter=', nbiter
+            FLUSH(DBG%FHNDL)
+          END IF
           CALL MPI_ALLREDUCE(Norm_LINF, Norm_LINF_gl, MSC*MDC,rtype,MPI_MAX,comm,ierr)
           CALL MPI_ALLREDUCE(Norm_L2, Norm_L2_gl, MSC*MDC, rtype,MPI_SUM,comm,ierr)
           MaxNorm = maxval(Norm_L2_gl)
           SumNorm = sum(Norm_L2_gl)
+          IF (dbg_iter) THEN
+            WRITE(DBG%FHNDL,*) 'JACDBG AFTER_NORM_ALLREDUCE rank=', myrank, ' iter=', nbiter, &
+     &        ' sumNorm=', SumNorm, ' maxNorm=', MaxNorm, ' ierr=', ierr
+            FLUSH(DBG%FHNDL)
+          END IF
 #else
           MaxNorm = maxval(Norm_L2)
           SumNorm = sum(Norm_L2)
 #endif
           IF (sqrt(SumNorm) .le. WAE_SOLVERTHR) THEN
+            IF (dbg_jacobi) THEN
+              WRITE(DBG%FHNDL,*) 'JACDBG EXIT_NORM rank=', myrank, ' iter=', nbiter, &
+     &            ' sqrt_sumNorm=', sqrt(SumNorm), ' wae_solverthr=', WAE_SOLVERTHR
+              FLUSH(DBG%FHNDL)
+            END IF
             EXIT
           END IF
         END IF
+        IF (dbg_iter) THEN
+          WRITE(DBG%FHNDL,*) 'JACDBG ITER_END rank=', myrank, ' iter=', nbiter, &
+     &      ' p_is_converged=', p_is_converged, ' is_converged_global=', is_converged(1)
+          FLUSH(DBG%FHNDL)
+        END IF
       END DO
+      IF (dbg_jacobi) THEN
+        WRITE(DBG%FHNDL,*) 'JACDBG LEAVE rank=', myrank, ' nbIter=', nbIter
+        FLUSH(DBG%FHNDL)
+      END IF
       IF (WRITESTATFLAG == 1) WRITE(STAT%FHNDL,*) 'nbIter=', nbIter
 
 #ifdef TIMINGS
