@@ -2165,7 +2165,8 @@
       DO
         is_converged(1) = 0
         JDX=0
-        dbg_iter = dbg_jacobi .AND. ((nbiter .le. 10) .OR. (MOD(nbiter,25) .eq. 0))
+        ! dbg_iter = dbg_jacobi .AND. ((nbiter .le. 10) .OR. (MOD(nbiter,25) .eq. 0))
+        dbg_iter = dbg_jacobi
         IF (dbg_iter) THEN
           WRITE(DBG%FHNDL,*) 'JACDBG ITER_BEGIN rank=', myrank, ' iter=', nbiter
           FLUSH(DBG%FHNDL)
