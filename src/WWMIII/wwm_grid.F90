@@ -250,7 +250,7 @@
 !*                                                                    *
 !**********************************************************************
       SUBROUTINE READ_SPATIAL_GRID_TOTAL_KERNEL(eGrid, DimModeIn, LVAR1D, Lsphe, eGRD, iGridType)
-      USE DATAPOOL, only : rkind, istat, GridInformation, FILEDEF, MULTIPLE_IN_GRID, DIMMODE, myrank, comm, ierr, NP_TOTAL, NE_TOTAL, &
+      USE DATAPOOL, only : rkind, istat, GridInformation, FILEDEF, MULTIPLE_IN_GRID, DIMMODE, myrank, comm, ierr, &
       &istatus, itype, INEtotal, DIMMODE, nproc, rtype
       IMPLICIT NONE
       type(GridInformation), intent(out) :: eGrid
@@ -265,27 +265,27 @@
       integer iProc, IP, IE, nb_real, idx
 #ifdef MPI_PARALL_GRID
       IF (MULTIPLE_IN_GRID) THEN
-        CALL SINGLE_READ_SPATIAL_GRID_TOTAL(eGrid, DimMode, LVAR1D, Lsphe, eGRD, iGridType)
+        CALL SINGLE_READ_SPATIAL_GRID_TOTAL(eGrid, DimModeIn, LVAR1D, Lsphe, eGRD, iGridType)
       ELSE
         IF (DIMMODE .ne. 2) THEN
           CALL WWM_ABORT('Parallel mode only for 2D')
         ENDIF
         IF (myrank .eq. 0) THEN
-          CALL SINGLE_READ_SPATIAL_GRID_TOTAL(eGrid, DimMode, LVAR1D, Lsphe, eGRD, iGridType)
+          CALL SINGLE_READ_SPATIAL_GRID_TOTAL(eGrid, DimModeIn, LVAR1D, Lsphe, eGRD, iGridType)
           rbuf_int(1)=eGrid % np_total
           rbuf_int(2)=eGrid % ne_total
           DO iProc=2,nproc
             CALL MPI_SEND(rbuf_int,2,itype, iProc-1, 30, comm, ierr)
           END DO
           DO iProc=2,nproc
-            CALL MPI_SEND(INEtotal,3*eGrid % ne_total,itype, iProc-1, 32, comm, ierr)
+            CALL MPI_SEND(eGrid % INEtotal,3*eGrid % ne_total,itype, iProc-1, 32, comm, ierr)
           END DO
           IF (IGRIDTYPE .eq. 2) THEN
             nb_real=eGrid % np_total + 7*eGrid % ne_total
             allocate(rbuf_real(nb_real), stat=istat)
             IF (istat/=0) CALL WWM_ABORT('allocate error 10')
             idx=0
-            DO IP=1,NP_TOTAL
+            DO IP=1,eGrid % NP_TOTAL
               idx=idx+1
               rbuf_real(idx)=eGrid % DEPtotal(IP)
             END DO
@@ -304,7 +304,7 @@
             allocate(rbuf_real(nb_real), stat=istat)
             IF (istat/=0) CALL WWM_ABORT('allocate error 11')
             idx=0
-            DO IP=1,NP_TOTAL
+            DO IP=1,eGrid % np_total
               rbuf_real(idx+1)=eGrid % XPtotal(IP)
               rbuf_real(idx+2)=eGrid % YPtotal(IP)
               rbuf_real(idx+3)=eGrid % DEPtotal(IP)
@@ -345,14 +345,14 @@
               idx=idx+7
             END DO
           ELSE
-            nb_real=3*np_total
+            nb_real=3*eGrid % np_total
             allocate(rbuf_real(nb_real), stat=istat)
             IF (istat/=0) CALL WWM_ABORT('allocate error 15')
-            allocate(eGrid % DEPtotal(np_total), eGrid % XPtotal(np_total), eGrid % YPtotal(np_total), stat=istat)
+            allocate(eGrid % DEPtotal(eGrid % np_total), eGrid % XPtotal(eGrid % np_total), eGrid % YPtotal(eGrid % np_total), stat=istat)
             IF (istat/=0) CALL WWM_ABORT('allocate error 16')
             CALL MPI_RECV(rbuf_real,nb_real,rtype, 0, 34, comm, istatus, ierr)
             idx=0
-            DO IP=1,NP_TOTAL
+            DO IP=1,eGrid % NP_TOTAL
               eGrid % XPtotal(IP) = rbuf_real(idx+1)
               eGrid % YPtotal(IP) = rbuf_real(idx+2)
               eGrid % DEPtotal(IP)= rbuf_real(idx+3)
@@ -363,7 +363,7 @@
         END IF
       END IF
 #else
-      CALL SINGLE_READ_SPATIAL_GRID_TOTAL(eGrid, DimMode, LVAR1D, Lsphe, eGRD, iGridType)
+      CALL SINGLE_READ_SPATIAL_GRID_TOTAL(eGrid, DimModeIn, LVAR1D, Lsphe, eGRD, iGridType)
 #endif
       END SUBROUTINE
 !**********************************************************************
