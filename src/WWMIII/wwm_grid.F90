@@ -250,7 +250,7 @@
 !*                                                                    *
 !**********************************************************************
       SUBROUTINE READ_SPATIAL_GRID_TOTAL_KERNEL(eGrid, DimMode, LVAR1D, Lsphe, eGRD, iGridType)
-      USE DATAPOOL, only : rkind, istat, GridInformation, FILEDEF, MULTIPLE_IN_GRID
+      USE DATAPOOL, only : rkind, istat, GridInformation, FILEDEF, MULTIPLE_IN_GRID, DIMMODE, myrank, comm, ierr, NP_TOTAL, NE_TOTAL
       IMPLICIT NONE
       type(GridInformation), intent(out) :: eGrid
       integer, intent(in) :: DimMode
