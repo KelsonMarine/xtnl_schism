@@ -285,7 +285,7 @@
             allocate(rbuf_real(nb_real), stat=istat)
             IF (istat/=0) CALL WWM_ABORT('allocate error 10')
             idx=0
-            DO IP=1,NP_TOTAL
+            DO IP=1,eGrid % NP_TOTAL
               idx=idx+1
               rbuf_real(idx)=eGrid % DEPtotal(IP)
             END DO
