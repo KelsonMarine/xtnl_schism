@@ -278,7 +278,7 @@
             CALL MPI_SEND(rbuf_int,2,itype, iProc-1, 30, comm, ierr)
           END DO
           DO iProc=2,nproc
-            CALL MPI_SEND(INEtotal,3*eGrid % ne_total,itype, iProc-1, 32, comm, ierr)
+            CALL MPI_SEND(eGrid % INEtotal,3*eGrid % ne_total,itype, iProc-1, 32, comm, ierr)
           END DO
           IF (IGRIDTYPE .eq. 2) THEN
             nb_real=eGrid % np_total + 7*eGrid % ne_total
