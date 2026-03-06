@@ -1,3 +1,4 @@
+#include "wwm_functions.h"
 !**********************************************************************
 !*                                                                    *
 !**********************************************************************
@@ -249,7 +250,7 @@
 !*                                                                    *
 !**********************************************************************
       SUBROUTINE READ_SPATIAL_GRID_TOTAL_KERNEL(eGrid, DimMode, LVAR1D, Lsphe, eGRD, iGridType)
-      USE DATAPOOL, only : rkind, istat, GridInformation, FILEDEF
+      USE DATAPOOL, only : rkind, istat, GridInformation, FILEDEF, MULTIPLE_IN_GRID
       IMPLICIT NONE
       type(GridInformation), intent(out) :: eGrid
       integer, intent(in) :: DimMode
