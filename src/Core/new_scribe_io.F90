@@ -298,20 +298,6 @@ contains
       !allocate(iof_icm(nout_icm))
       !call mpi_recv(iof_icm,nout_icm,itype,0,144,comm_schism,rrqst,ierr)
 #endif
-      call mpi_recv(ics,1,itype,0,146,comm_schism,rrqst,ierr)
-      call mpi_recv(iof_ugrid,1,itype,0,147,comm_schism,rrqst,ierr)
-
-      if(myrank_scribe==0) then
-         write(16,*)'Scribe ',myrank_scribe,myrank_schism,nproc_scribe,nproc_compute
-         write(16,*)'Scribe, basic info:',dt,nspool,nvrt,np_global,ihfskip, &
-         &iths,ntime,iof_hydro,ncount_2dnode,ncount_2delem,ncount_2dside,ncount_3dnode, &
-         &ncount_3dside,ncount_3delem,ntrs
-         write(16,*)'out_name and i23d:'
-         do i=1,counter_out_name
-            write(16,*)i,trim(adjustl(out_name(i))),iout_23d(i)
-         enddo !i
-      endif !myrank_scribe
-
       !Finish rest of recv for modules
       allocate(iof_gen(max(1,ntrs(3))),iof_age(max(1,ntrs(4))),iof_sed(3*ntrs(5)+20), &
       &iof_eco(max(1,ntrs(6))),iof_dvd(max(1,ntrs(12))))
@@ -326,6 +312,21 @@ contains
       call mpi_recv(start_day,1,itype,0,138,comm_schism,rrqst,ierr)
       call mpi_recv(start_hour,1,rtype,0,139,comm_schism,rrqst,ierr)
       call mpi_recv(utc_start,1,rtype,0,140,comm_schism,rrqst,ierr)
+
+      call mpi_recv(ics,1,itype,0,146,comm_schism,rrqst,ierr)
+      call mpi_recv(iof_ugrid,1,itype,0,147,comm_schism,rrqst,ierr)
+
+      if(myrank_scribe==0) then
+         write(16,*)'Scribe ',myrank_scribe,myrank_schism,nproc_scribe,nproc_compute
+         write(16,*)'Scribe, basic info:',dt,nspool,nvrt,np_global,ihfskip, &
+         &iths,ntime,iof_hydro,ncount_2dnode,ncount_2delem,ncount_2dside,ncount_3dnode, &
+         &ncount_3dside,ncount_3delem,ntrs
+         write(16,*)'out_name and i23d:'
+         do i=1,counter_out_name
+            write(16,*)i,trim(adjustl(out_name(i))),iout_23d(i)
+         enddo !i
+      endif !myrank_scribe
+
 
       !Write start time into a string for later write
       !> @todo fix fractional start_hour and utc_start
