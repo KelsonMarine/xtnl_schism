@@ -398,14 +398,95 @@
 
         TAUWX = ZERO; TAUWY = ZERO; CD = ZERO; Z0 = ZERO; USTDIR = ZERO
   
+# ifdef MPI_PARALL_GRID
+        IF (myrank .eq. 0) THEN
+          INQUIRE(FILE='fort.5002',EXIST=LPRECOMP_EXIST)
+          IF (.NOT. LPRECOMP_EXIST) THEN
+            CALL INSIN4(.TRUE.)
+          ELSE
+            CALL READ_INSIN4
+          END IF
+        END IF
+        CALL BROADCAST_INSIN4
+# else
         INQUIRE(FILE='fort.5002',EXIST=LPRECOMP_EXIST)
         IF (.NOT. LPRECOMP_EXIST) THEN
           CALL INSIN4(.TRUE.)
         ELSE
           CALL READ_INSIN4
         END IF
+# endif
 
-      END SUBROUTINE
+     END SUBROUTINE
+!**********************************************************************
+!*                                                                    *
+!**********************************************************************
+      SUBROUTINE BROADCAST_INSIN4
+# ifdef MPI_PARALL_GRID
+      USE DATAPOOL, ONLY : LPRECOMP_EXIST, myrank, comm, ierr, itype, rtype
+      IMPLICIT NONE
+      INTEGER :: ibuf(1)
+
+      IF (myrank .eq. 0) THEN
+        ibuf(1) = 0
+        IF (LPRECOMP_EXIST) ibuf(1) = 1
+      END IF
+      CALL MPI_BCAST(ibuf,1,itype,0,comm,ierr)
+      LPRECOMP_EXIST = (ibuf(1) .eq. 1)
+
+      CALL MPI_BCAST(ZZWND,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(AALPHA,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(ZZ0MAX,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(BBETA,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSINTHP,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(ZZALP,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(TTAUWSHELTER,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSWELLFPAR,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSWELLF,SIZE(SSWELLF),rtype,0,comm,ierr)
+      CALL MPI_BCAST(ZZ0RAT,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSC1,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSC2,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSC3,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSC4,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSC5,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSC6,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSISO,1,itype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBR,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBR2,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBM,SIZE(SSDSBM),rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSP,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSCOS,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSDTH,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSTXFTF,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSTXFTFTAIL,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSTXFTWN,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBRF1,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBRF2,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBRFDF,1,itype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBCK,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSABK,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSPBK,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSBINT,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(SSDSHCK,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(DELUST,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(DELTAIL,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(DELTAUW,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(DELU,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(DELALP,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(DELAB,1,rtype,0,comm,ierr)
+      CALL MPI_BCAST(TAUT,SIZE(TAUT),rtype,0,comm,ierr)
+      CALL MPI_BCAST(TAUHFT,SIZE(TAUHFT),rtype,0,comm,ierr)
+      CALL MPI_BCAST(TAUHFT2,SIZE(TAUHFT2),rtype,0,comm,ierr)
+      CALL MPI_BCAST(SWELLFT,SIZE(SWELLFT),rtype,0,comm,ierr)
+      CALL MPI_BCAST(IKTAB,SIZE(IKTAB),itype,0,comm,ierr)
+      CALL MPI_BCAST(DCKI,SIZE(DCKI),rtype,0,comm,ierr)
+      CALL MPI_BCAST(SATINDICES,SIZE(SATINDICES),itype,0,comm,ierr)
+      CALL MPI_BCAST(SATWEIGHTS,SIZE(SATWEIGHTS),rtype,0,comm,ierr)
+      CALL MPI_BCAST(DIKCUMUL,1,itype,0,comm,ierr)
+      CALL MPI_BCAST(CUMULW,SIZE(CUMULW),rtype,0,comm,ierr)
+      CALL MPI_BCAST(QBI,SIZE(QBI),rtype,0,comm,ierr)
+# endif
+      END SUBROUTINE BROADCAST_INSIN4
 !**********************************************************************
 !*                                                                    *
 !**********************************************************************
