@@ -714,6 +714,11 @@
       END IF
       CALL INIT_SPECTRAL_GRID
 
+      if(myrank==0) then
+        write(16,*) 'init spectral grid ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
+
       IF (WRITESTATFLAG == 1) THEN
         WRITE(STAT%FHNDL,'("+TRACE...",A)') 'INITIALIZE BOUNDARY POINTER 1/2'
         FLUSH(STAT%FHNDL)
@@ -723,6 +728,12 @@
 !      DMIN = DMIN_SCHISM
 #endif
       CALL SET_IOBP_NEXTGENERATION
+
+      if(myrank==0) then
+        write(16,*) 'init boundary pointer next gen ', (mpi_wtime() - start_time), 's'
+        call flush(16) !flush "mirror.out" for every time step
+      endif
+
       IF (WRITESTATFLAG == 1) THEN
         WRITE(STAT%FHNDL,'("+TRACE...",A)') 'INITIALIZE BOUNDARY POINTER 2/2'
         FLUSH(STAT%FHNDL)
