@@ -3913,92 +3913,92 @@ subroutine exchange_p4d_wwm(p4d_wwm_data)
 !-------------------------------------------------------------------------------
   implicit none
   real(rkind),intent(inout) :: p4d_wwm_data(:,:,:) !indices must be (msc2,mdc2,nm) where nm>=npa
-  integer,save :: p4d_wwm_call_count=0
+  ! integer,save :: p4d_wwm_call_count=0
   integer :: i,j,ierr2,recv_type_size,send_type_size
 !-------------------------------------------------------------------------------
 
   ! Handle single processor case
   if(nproc==1) return
-  p4d_wwm_call_count=p4d_wwm_call_count+1
-  write(12,*) 'DBG exchange_p4d_wwm begin: myrank=',myrank,' call=',p4d_wwm_call_count, &
-       ' nnbr_p=',nnbr_p,' nproc=',nproc,' shape=',shape(p4d_wwm_data), &
-       ' npa=',npa,' np=',np,' msc2=',msc2,' mdc2=',mdc2
+  ! p4d_wwm_call_count=p4d_wwm_call_count+1
+  ! write(12,*) 'DBG exchange_p4d_wwm begin: myrank=',myrank,' call=',p4d_wwm_call_count, &
+  !      ' nnbr_p=',nnbr_p,' nproc=',nproc,' shape=',shape(p4d_wwm_data), &
+  !      ' npa=',npa,' np=',np,' msc2=',msc2,' mdc2=',mdc2
 
   ! Post receives
   do i=1,nnbr_p
     if(nprecv(i)/=0) then
-      call mpi_type_size(p4d_wwm_recv_type(i),recv_type_size,ierr2)
-      if(ierr2/=MPI_SUCCESS) recv_type_size=-1
-      write(12,*) 'DBG exchange_p4d_wwm pre-irecv: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' tag=',28,' nprecv=',nprecv(i), &
-           ' recv_type=',p4d_wwm_recv_type(i),' recv_type_size=',recv_type_size, &
-           ' first_iprecv=',iprecv(1,i),' last_iprecv=',iprecv(nprecv(i),i)
+      ! call mpi_type_size(p4d_wwm_recv_type(i),recv_type_size,ierr2)
+      ! if(ierr2/=MPI_SUCCESS) recv_type_size=-1
+      ! write(12,*) 'DBG exchange_p4d_wwm pre-irecv: myrank=',myrank,' call=',p4d_wwm_call_count, &
+      !      ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' tag=',28,' nprecv=',nprecv(i), &
+      !      ' recv_type=',p4d_wwm_recv_type(i),' recv_type_size=',recv_type_size, &
+      !      ' first_iprecv=',iprecv(1,i),' last_iprecv=',iprecv(nprecv(i),i)
       call mpi_irecv(p4d_wwm_data,1,p4d_wwm_recv_type(i),nbrrank_p(i),28,comm,p4d_wwm_recv_rqst(i),ierr)
-      write(12,*) 'DBG exchange_p4d_wwm post-irecv: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',i,' ierr=',ierr,' rqst=',p4d_wwm_recv_rqst(i)
+      ! write(12,*) 'DBG exchange_p4d_wwm post-irecv: myrank=',myrank,' call=',p4d_wwm_call_count, &
+      !      ' nbr_idx=',i,' ierr=',ierr,' rqst=',p4d_wwm_recv_rqst(i)
       if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p4d_wwm: irecv tag=28',ierr)
     else
       p4d_wwm_recv_rqst(i)=MPI_REQUEST_NULL
-      write(12,*) 'DBG exchange_p4d_wwm skip-irecv: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' nprecv=0 rqst=NULL'
+      ! write(12,*) 'DBG exchange_p4d_wwm skip-irecv: myrank=',myrank,' call=',p4d_wwm_call_count, &
+      !      ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' nprecv=0 rqst=NULL'
     endif
   enddo
 
   ! Post sends
   do i=1,nnbr_p
     if(npsend(i)/=0) then
-      call mpi_type_size(p4d_wwm_send_type(i),send_type_size,ierr2)
-      if(ierr2/=MPI_SUCCESS) send_type_size=-1
-      write(12,*) 'DBG exchange_p4d_wwm pre-isend: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' tag=',28,' npsend=',npsend(i), &
-           ' send_type=',p4d_wwm_send_type(i),' send_type_size=',send_type_size, &
-           ' first_ipsend=',ipsend(1,i),' last_ipsend=',ipsend(npsend(i),i)
+      ! call mpi_type_size(p4d_wwm_send_type(i),send_type_size,ierr2)
+      ! if(ierr2/=MPI_SUCCESS) send_type_size=-1
+      ! write(12,*) 'DBG exchange_p4d_wwm pre-isend: myrank=',myrank,' call=',p4d_wwm_call_count, &
+      !      ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' tag=',28,' npsend=',npsend(i), &
+      !      ' send_type=',p4d_wwm_send_type(i),' send_type_size=',send_type_size, &
+      !      ' first_ipsend=',ipsend(1,i),' last_ipsend=',ipsend(npsend(i),i)
       call mpi_isend(p4d_wwm_data,1,p4d_wwm_send_type(i),nbrrank_p(i),28,comm,p4d_wwm_send_rqst(i),ierr)
-      write(12,*) 'DBG exchange_p4d_wwm post-isend: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',i,' ierr=',ierr,' rqst=',p4d_wwm_send_rqst(i)
+      ! write(12,*) 'DBG exchange_p4d_wwm post-isend: myrank=',myrank,' call=',p4d_wwm_call_count, &
+      !      ' nbr_idx=',i,' ierr=',ierr,' rqst=',p4d_wwm_send_rqst(i)
       if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p4d_wwm: isend tag=28',ierr)
     else
       p4d_wwm_send_rqst(i)=MPI_REQUEST_NULL
-      write(12,*) 'DBG exchange_p4d_wwm skip-isend: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' npsend=0 rqst=NULL'
+      ! write(12,*) 'DBG exchange_p4d_wwm skip-isend: myrank=',myrank,' call=',p4d_wwm_call_count, &
+      !      ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' npsend=0 rqst=NULL'
     endif
   enddo
 
   ! Wait for completion
-  write(12,*) 'DBG exchange_p4d_wwm pre-waitall-recv: myrank=',myrank,' call=',p4d_wwm_call_count
+  ! write(12,*) 'DBG exchange_p4d_wwm pre-waitall-recv: myrank=',myrank,' call=',p4d_wwm_call_count
   call mpi_waitall(nnbr_p,p4d_wwm_recv_rqst,p4d_wwm_recv_stat,ierr)
-  write(12,*) 'DBG exchange_p4d_wwm post-waitall-recv: myrank=',myrank,' call=',p4d_wwm_call_count, &
-       ' ierr=',ierr
+  ! write(12,*) 'DBG exchange_p4d_wwm post-waitall-recv: myrank=',myrank,' call=',p4d_wwm_call_count, &
+  !      ' ierr=',ierr
   if(ierr/=MPI_SUCCESS) then
-    do j=1,nnbr_p
-      write(12,*) 'DBG exchange_p4d_wwm waitall-recv-status: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',j,' nbr_rank=',nbrrank_p(j),' nprecv=',nprecv(j), &
-           ' rqst=',p4d_wwm_recv_rqst(j), &
-           ' source=',p4d_wwm_recv_stat(MPI_SOURCE,j), &
-           ' tag=',p4d_wwm_recv_stat(MPI_TAG,j), &
-           ' status_err=',p4d_wwm_recv_stat(MPI_ERROR,j)
-    enddo
-    flush(12)
+    ! do j=1,nnbr_p
+    !   write(12,*) 'DBG exchange_p4d_wwm waitall-recv-status: myrank=',myrank,' call=',p4d_wwm_call_count, &
+    !        ' nbr_idx=',j,' nbr_rank=',nbrrank_p(j),' nprecv=',nprecv(j), &
+    !        ' rqst=',p4d_wwm_recv_rqst(j), &
+    !        ' source=',p4d_wwm_recv_stat(MPI_SOURCE,j), &
+    !        ' tag=',p4d_wwm_recv_stat(MPI_TAG,j), &
+    !        ' status_err=',p4d_wwm_recv_stat(MPI_ERROR,j)
+    ! enddo
+    ! flush(12)
     call parallel_abort('exchange_p4d_wwm: waitall recv',ierr)
   endif
-  write(12,*) 'DBG exchange_p4d_wwm pre-waitall-send: myrank=',myrank,' call=',p4d_wwm_call_count
+  ! write(12,*) 'DBG exchange_p4d_wwm pre-waitall-send: myrank=',myrank,' call=',p4d_wwm_call_count
   call mpi_waitall(nnbr_p,p4d_wwm_send_rqst,p4d_wwm_send_stat,ierr)
-  write(12,*) 'DBG exchange_p4d_wwm post-waitall-send: myrank=',myrank,' call=',p4d_wwm_call_count, &
-       ' ierr=',ierr
+  ! write(12,*) 'DBG exchange_p4d_wwm post-waitall-send: myrank=',myrank,' call=',p4d_wwm_call_count, &
+  !      ' ierr=',ierr
   if(ierr/=MPI_SUCCESS) then
-    do j=1,nnbr_p
-      write(12,*) 'DBG exchange_p4d_wwm waitall-send-status: myrank=',myrank,' call=',p4d_wwm_call_count, &
-           ' nbr_idx=',j,' nbr_rank=',nbrrank_p(j),' npsend=',npsend(j), &
-           ' rqst=',p4d_wwm_send_rqst(j), &
-           ' source=',p4d_wwm_send_stat(MPI_SOURCE,j), &
-           ' tag=',p4d_wwm_send_stat(MPI_TAG,j), &
-           ' status_err=',p4d_wwm_send_stat(MPI_ERROR,j)
-    enddo
-    flush(12)
+    ! do j=1,nnbr_p
+    !   write(12,*) 'DBG exchange_p4d_wwm waitall-send-status: myrank=',myrank,' call=',p4d_wwm_call_count, &
+    !        ' nbr_idx=',j,' nbr_rank=',nbrrank_p(j),' npsend=',npsend(j), &
+    !        ' rqst=',p4d_wwm_send_rqst(j), &
+    !        ' source=',p4d_wwm_send_stat(MPI_SOURCE,j), &
+    !        ' tag=',p4d_wwm_send_stat(MPI_TAG,j), &
+    !        ' status_err=',p4d_wwm_send_stat(MPI_ERROR,j)
+    ! enddo
+    ! flush(12)
     call parallel_abort('exchange_p4d_wwm: waitall send',ierr)
   endif
-  write(12,*) 'DBG exchange_p4d_wwm end: myrank=',myrank,' call=',p4d_wwm_call_count
-  flush(12)
+  ! write(12,*) 'DBG exchange_p4d_wwm end: myrank=',myrank,' call=',p4d_wwm_call_count
+  ! flush(12)
 
 end subroutine exchange_p4d_wwm
 
