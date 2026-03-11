@@ -3927,8 +3927,8 @@ subroutine exchange_p4d_wwm(p4d_wwm_data)
   ! Post receives
   do i=1,nnbr_p
     if(nprecv(i)/=0) then
-      call mpi_type_size(p4d_wwm_recv_type(i),recv_type_size,ierr2)
-      if(ierr2/=MPI_SUCCESS) recv_type_size=-1
+      ! call mpi_type_size(p4d_wwm_recv_type(i),recv_type_size,ierr2)
+      ! if(ierr2/=MPI_SUCCESS) recv_type_size=-1
       ! write(12,*) 'DBG exchange_p4d_wwm pre-irecv: myrank=',myrank,' call=',p4d_wwm_call_count, &
       !      ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' tag=',28,' nprecv=',nprecv(i), &
       !      ' recv_type=',p4d_wwm_recv_type(i),' recv_type_size=',recv_type_size, &
@@ -3947,8 +3947,8 @@ subroutine exchange_p4d_wwm(p4d_wwm_data)
   ! Post sends
   do i=1,nnbr_p
     if(npsend(i)/=0) then
-      call mpi_type_size(p4d_wwm_send_type(i),snend_type_size,ierr2)
-      if(ierr2/=MPI_SUCCESS) send_type_size=-1
+      ! call mpi_type_size(p4d_wwm_send_type(i),send_type_size,ierr2)
+      ! if(ierr2/=MPI_SUCCESS) send_type_size=-1
       ! write(12,*) 'DBG exchange_p4d_wwm pre-isend: myrank=',myrank,' call=',p4d_wwm_call_count, &
       !      ' nbr_idx=',i,' nbr_rank=',nbrrank_p(i),' tag=',28,' npsend=',npsend(i), &
       !      ' send_type=',p4d_wwm_send_type(i),' send_type_size=',send_type_size, &
