@@ -10168,9 +10168,11 @@
         
 !...    Lastly, send 2D elem/side outputs as nsend_varout is used by 3D outputs above
         nsend_varout=nsend_varout+1
+        if(nsend_varout>size(srqst7)) call parallel_abort('STEP: nsend_varout>size(srqst7)')
         call mpi_isend(varout_2delem(1:ncount_2delem,1:ne),ne*ncount_2delem,MPI_REAL4,iscribe_2d, &
      &701,comm_schism,srqst7(nsend_varout),ierr)
         nsend_varout=nsend_varout+1
+        if(nsend_varout>size(srqst7)) call parallel_abort('STEP: nsend_varout>size(srqst7)')
         call mpi_isend(varout_2dside(1:ncount_2dside,1:ns),ns*ncount_2dside,MPI_REAL4,iscribe_2d, &
      &702,comm_schism,srqst7(nsend_varout),ierr)
 
