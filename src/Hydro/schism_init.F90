@@ -7057,11 +7057,13 @@
       allocate(srqst7(noutvars+10), stat=istat)
       if(istat/=0) call parallel_abort('INIT: allocate srqst7 failure')
       srqst7(:)=MPI_REQUEST_NULL
-      ! if (noutvars > nscribes) then
-      !   write(errmsg, '(A,I0,A,A,I0,A)') 'INIT: Too few scribes (', nscribes , '). ', &
-      !   ' Please specify atleast equal to number of output variables (', noutvars, ')' 
-      !   call parallel_abort(errmsg)
-      ! endif
+#ifndef NEW_SCRIBED
+      if (noutvars > nscribes) then
+        write(errmsg, '(A,I0,A,A,I0,A)') 'INIT: Too few scribes (', nscribes , '). ', &
+        ' Please specify atleast equal to number of output variables (', noutvars, ')' 
+        call parallel_abort(errmsg)
+      endif
+#endif
       if(counter_out_name>max_ncoutvar) call parallel_abort('INIT: increase out_name dim')
       if(myrank==0) then 
         write(16,*)'# of scribe can be set as small as:',noutvars,nscribes
