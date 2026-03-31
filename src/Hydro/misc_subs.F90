@@ -9002,7 +9002,6 @@
         icount=icount+1
         nsend_varout=nsend_varout+1
         ! if(nsend_varout>nscribes.or.icount>ncount3) call parallel_abort('savensend3D_scribe: too many sends')
-        nproc_send = nproc_schism - mod(nsend_varout - 1, nscribes) - 1
 
         if(j==1) then
           if(imode==1) then !node
@@ -9022,6 +9021,9 @@
           endif !imode
         endif !j
 
+#ifdef NEW_SCRIBED
+        nproc_send = nproc_schism - mod(nsend_varout - 1, nscribes) - 1
+
         if(imode==1) then !node
           call mpi_isend(varout_3dnode(:,1:np,icount),np*nvrt,MPI_REAL4,nproc_send, &
           &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
@@ -9032,17 +9034,19 @@
           call mpi_isend(varout_3dside(:,1:ns,icount),ns*nvrt,MPI_REAL4,nproc_send, &
           &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
         endif !imode
+#else
 
-    !     if(imode==1) then !node
-    !       call mpi_isend(varout_3dnode(:,1:np,icount),np*nvrt,MPI_REAL4,nproc_schism-nsend_varout, &
-    !  &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
-    !     else if(imode==2) then !elem
-    !       call mpi_isend(varout_3delem(:,1:ne,icount),ne*nvrt,MPI_REAL4,nproc_schism-nsend_varout, &
-    !  &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
-    !     else !side
-    !       call mpi_isend(varout_3dside(:,1:ns,icount),ns*nvrt,MPI_REAL4,nproc_schism-nsend_varout, &
-    !  &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
-    !     endif !imode
+        if(imode==1) then !node
+          call mpi_isend(varout_3dnode(:,1:np,icount),np*nvrt,MPI_REAL4,nproc_schism-nsend_varout, &
+     &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
+        else if(imode==2) then !elem
+          call mpi_isend(varout_3delem(:,1:ne,icount),ne*nvrt,MPI_REAL4,nproc_schism-nsend_varout, &
+     &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
+        else !side
+          call mpi_isend(varout_3dside(:,1:ns,icount),ns*nvrt,MPI_REAL4,nproc_schism-nsend_varout, &
+     &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
+        endif !imode
+#endif /* previous scribed io */
       enddo !j
 
       end subroutine savensend3D_scribe
