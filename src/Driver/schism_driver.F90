@@ -116,6 +116,7 @@ end program schism_driver
 
 subroutine schism_main
 !  use schism_msgp, only: myrank !! debug only
+  use schism_msgp, only: comm_schism
   implicit none
   integer :: it,iths,ntime
 
