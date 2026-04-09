@@ -127,6 +127,9 @@ subroutine schism_main
   call schism_finalize
 #else
   call schism_init0(iths,ntime)
+
+  call mpi_barrier(comm_schism,ierr)
+
   do it=iths+1,ntime
     call schism_step0(it)
   enddo !it
