@@ -10781,4 +10781,6 @@
       cwtmp3=tmp !reset
 #endif
 
+      call log_memory_usage(it,time)
+
       end subroutine schism_step

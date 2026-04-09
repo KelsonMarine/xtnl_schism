@@ -16,6 +16,7 @@
 !===============================================================================
 ! SCHISM MISCELLANEOUS SUBROUTINES
 ! subroutine other_hot_init
+! subroutine log_memory_usage
 ! subroutine zcoor
 ! subroutine levels1
 ! subroutine levels0
@@ -1008,6 +1009,176 @@
       deallocate(swild)
 
       end subroutine other_hot_init
+
+!===============================================================================
+!===============================================================================
+      subroutine log_memory_usage(it,time)
+!-------------------------------------------------------------------------------
+!     Best-effort memory logger for Linux/procfs.
+!     Rank-specific values come from /proc/self/status; node-wide values come
+!     from /proc/meminfo. This routine never aborts the run if procfs reads fail.
+!-------------------------------------------------------------------------------
+      use schism_glbl, only : rkind
+      use schism_msgp, only : myrank
+      implicit none
+
+      integer, parameter :: ik8=selected_int_kind(18)
+      integer, parameter :: mem_log_stride=5
+      integer, parameter :: iu_proc=871, iu_mem=872, iu_host=873
+
+      integer, intent(in) :: it
+      real(rkind), intent(in) :: time
+
+      integer :: istat
+      integer(ik8) :: vmrss_kb,vmhwm_kb,vmsize_kb,memtotal_kb,memavail_kb
+      real(rkind) :: rss_mib,hwm_mib,vmsize_mib,node_used_mib,node_avail_mib, &
+     &node_total_mib,node_used_pct
+      logical, save :: first_log=.true.
+      logical, save :: host_loaded=.false.
+      character(len=128), save :: host_name='unknown'
+
+      if(it/=1.and.mod(it,mem_log_stride)/=0) return
+
+      if(.not.host_loaded) call read_host_name(host_name,host_loaded)
+
+      vmrss_kb=-1_ik8
+      vmhwm_kb=-1_ik8
+      vmsize_kb=-1_ik8
+      memtotal_kb=-1_ik8
+      memavail_kb=-1_ik8
+
+      call read_proc_status(vmrss_kb,vmhwm_kb,vmsize_kb)
+      call read_meminfo(memtotal_kb,memavail_kb)
+
+      rss_mib=kb_to_mib(vmrss_kb)
+      hwm_mib=kb_to_mib(vmhwm_kb)
+      vmsize_mib=kb_to_mib(vmsize_kb)
+      node_total_mib=kb_to_mib(memtotal_kb)
+      node_avail_mib=kb_to_mib(memavail_kb)
+
+      if(memtotal_kb>=0_ik8.and.memavail_kb>=0_ik8) then
+        node_used_mib=kb_to_mib(memtotal_kb-memavail_kb)
+        if(memtotal_kb>0_ik8) then
+          node_used_pct=100._rkind*real(memtotal_kb-memavail_kb,rkind)/real(memtotal_kb,rkind)
+        else
+          node_used_pct=-1._rkind
+        endif
+      else
+        node_used_mib=-1._rkind
+        node_used_pct=-1._rkind
+      endif
+
+      if(first_log) then
+        write(12,*)'MEMLOG stride_steps=',mem_log_stride, &
+     &             ' rank fields from /proc/self/status, node fields from /proc/meminfo'
+        first_log=.false.
+      endif
+
+      write(12,*)'MEM step=',it,' time_s=',time,' rank=',myrank,' node=',trim(host_name), &
+     &           ' rss_mib=',rss_mib,' hwm_mib=',hwm_mib,' vmsize_mib=',vmsize_mib, &
+     &           ' node_used_mib=',node_used_mib,' node_avail_mib=',node_avail_mib, &
+     &           ' node_total_mib=',node_total_mib,' node_used_pct=',node_used_pct
+      call flush(12)
+
+      contains
+
+      subroutine read_proc_status(rss_kb,hwm_kb,size_kb)
+        integer(ik8), intent(out) :: rss_kb,hwm_kb,size_kb
+        character(len=256) :: line
+        logical :: got_rss,got_hwm,got_size
+
+        rss_kb=-1_ik8
+        hwm_kb=-1_ik8
+        size_kb=-1_ik8
+        got_rss=.false.
+        got_hwm=.false.
+        got_size=.false.
+
+        open(iu_proc,file='/proc/self/status',status='old',action='read',iostat=istat)
+        if(istat/=0) return
+
+        do
+          read(iu_proc,'(A)',iostat=istat) line
+          if(istat/=0) exit
+          line=adjustl(line)
+          call parse_named_kb(line,'VmRSS:',rss_kb,got_rss)
+          call parse_named_kb(line,'VmHWM:',hwm_kb,got_hwm)
+          call parse_named_kb(line,'VmSize:',size_kb,got_size)
+          if(got_rss.and.got_hwm.and.got_size) exit
+        enddo
+
+        close(iu_proc)
+      end subroutine read_proc_status
+
+      subroutine read_meminfo(total_kb,avail_kb)
+        integer(ik8), intent(out) :: total_kb,avail_kb
+        character(len=256) :: line
+        logical :: got_total,got_avail
+
+        total_kb=-1_ik8
+        avail_kb=-1_ik8
+        got_total=.false.
+        got_avail=.false.
+
+        open(iu_mem,file='/proc/meminfo',status='old',action='read',iostat=istat)
+        if(istat/=0) return
+
+        do
+          read(iu_mem,'(A)',iostat=istat) line
+          if(istat/=0) exit
+          line=adjustl(line)
+          call parse_named_kb(line,'MemTotal:',total_kb,got_total)
+          call parse_named_kb(line,'MemAvailable:',avail_kb,got_avail)
+          if(got_total.and.got_avail) exit
+        enddo
+
+        close(iu_mem)
+      end subroutine read_meminfo
+
+      subroutine read_host_name(name_out,loaded)
+        character(len=*), intent(out) :: name_out
+        logical, intent(out) :: loaded
+        character(len=256) :: line
+
+        name_out='unknown'
+        loaded=.true.
+
+        open(iu_host,file='/proc/sys/kernel/hostname',status='old',action='read',iostat=istat)
+        if(istat/=0) return
+        read(iu_host,'(A)',iostat=istat) line
+        close(iu_host)
+        if(istat==0.and.len_trim(line)>0) name_out=trim(adjustl(line))
+      end subroutine read_host_name
+
+      subroutine parse_named_kb(line,key,value_kb,found_value)
+        character(len=*), intent(in) :: line,key
+        integer(ik8), intent(inout) :: value_kb
+        logical, intent(inout) :: found_value
+
+        integer :: ios
+        character(len=256) :: tail
+        character(len=16) :: units
+
+        if(found_value) return
+        if(index(line,key)/=1) return
+
+        tail=' '
+        if(len_trim(line)>len_trim(key)) tail=adjustl(line(len_trim(key)+1:))
+        read(tail,*,iostat=ios) value_kb,units
+        if(ios==0) found_value=.true.
+      end subroutine parse_named_kb
+
+      real(rkind) function kb_to_mib(value_kb)
+        integer(ik8), intent(in) :: value_kb
+
+        if(value_kb<0_ik8) then
+          kb_to_mib=-1._rkind
+        else
+          kb_to_mib=real(value_kb,rkind)/1024._rkind
+        endif
+      end function kb_to_mib
+
+      end subroutine log_memory_usage
 
 !===============================================================================
 !===============================================================================
