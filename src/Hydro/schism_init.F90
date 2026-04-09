@@ -133,7 +133,7 @@
 
 !     Misc. arrays
       integer, allocatable :: ipiv(:)
-      integer, allocatable :: nwild(:),nwild2(:),ibuf1(:,:),ibuf2(:,:)
+      integer, allocatable :: nwild(:),nwild2(:),ibuf1(:,:),ibuf2(:,:),island_nodes_gb(:)
       real(rkind), allocatable :: akr(:,:),akrp(:),work4(:),z_r2(:),xy_kr(:,:)
       real(rkind), allocatable :: swild(:),swild2(:,:),swild10(:,:)
       real(rkind), allocatable :: swild3(:) !,rwild(:,:)
@@ -2292,29 +2292,58 @@
           if(isbnd(1,i)/=0) ibnd_ext_int(i)=1 !weed out island nodes later
         enddo!i
 !       Identify island nodes
-        open(14,file=in_dir(1:len_in_dir)//'hgrid.gr3',status='old')
-        rewind(14)
-        do i=1,2+np_global+ne_global; read(14,*); enddo;
-        read(14,*); read(14,*);
-        do k=1,nope_global
-          read(14,*) nn
-          do i=1,nn; read(14,*); enddo;
-        enddo !k
-        read(14,*) !nland_global
-        read(14,*) !nvel_global
-        do k=1,nland_global
-          read(14,*) nn,ifl
-          do i=1,nn 
-            read(14,*)ipgb
-            if(ifl/=0.and.ipgl(ipgb)%rank==myrank) then !island
-              nd=ipgl(ipgb)%id
-              if(isbnd(1,nd)>0) call parallel_abort('No open bnd on islands for WWM')
-!'
-              ibnd_ext_int(nd)=-1
-            endif !ifl
-          enddo !i
-        enddo !k
-        close(14)
+        if(myrank==0) then
+          open(14,file=in_dir(1:len_in_dir)//'hgrid.gr3',status='old')
+          rewind(14)
+          do i=1,2+np_global+ne_global
+            read(14,*)
+          enddo
+          read(14,*)
+          read(14,*)
+          do k=1,nope_global
+            read(14,*) nn
+            do i=1,nn
+              read(14,*)
+            enddo
+          enddo !k
+          read(14,*) nland_global
+          read(14,*) nvel_global
+          allocate(island_nodes_gb(max(1,nvel_global)),stat=istat)
+          if(istat/=0) call parallel_abort('INIT: island_nodes_gb allocation failure')
+          nd=0
+          do k=1,nland_global
+            read(14,*) nn,ifl
+            do i=1,nn
+              read(14,*) ipgb
+              if(ifl/=0) then !island
+                nd=nd+1
+                island_nodes_gb(nd)=ipgb
+              endif
+            enddo !i
+          enddo !k
+          close(14)
+          nn=nd
+        endif
+
+        call mpi_bcast(nn,1,itype,0,comm,istat)
+        if(myrank/=0) then
+          allocate(island_nodes_gb(max(1,nn)),stat=istat)
+          if(istat/=0) call parallel_abort('INIT: island_nodes_gb allocation failure')
+        endif
+        call mpi_bcast(island_nodes_gb,nn,itype,0,comm,istat)
+
+        iabort=0
+        do i=1,nn
+          ipgb=island_nodes_gb(i)
+          if(ipgl(ipgb)%rank==myrank) then
+            nd=ipgl(ipgb)%id
+            if(isbnd(1,nd)>0) iabort=1
+            ibnd_ext_int(nd)=-1
+          endif
+        enddo !i
+        call mpi_allreduce(iabort,iabort_gb,1,itype,MPI_SUM,comm,ierr)
+        if(iabort_gb/=0) call parallel_abort('No open bnd on islands for WWM')
+        deallocate(island_nodes_gb)
 
 #endif /*USE_WWM*/
 
