@@ -118,7 +118,7 @@ subroutine schism_main
 !  use schism_msgp, only: myrank !! debug only
   use schism_msgp, only: comm_schism
   implicit none
-  integer :: it,iths,ntime
+  integer :: it,iths,ntime,ierr
 
 #ifdef OLDIO
   call schism_init(0,'./',iths,ntime)
