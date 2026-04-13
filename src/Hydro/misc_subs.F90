@@ -16,6 +16,8 @@
 !===============================================================================
 ! SCHISM MISCELLANEOUS SUBROUTINES
 ! subroutine other_hot_init
+! function memory_log_due
+! subroutine log_memory_checkpoint
 ! subroutine log_memory_usage
 ! subroutine zcoor
 ! subroutine levels1
@@ -1012,6 +1014,38 @@
 
 !===============================================================================
 !===============================================================================
+      logical function memory_log_due(it)
+      implicit none
+
+      integer, parameter :: mem_log_stride=1
+      integer, intent(in) :: it
+
+      memory_log_due=(it==1.or.mod(it,mem_log_stride)==0)
+
+      end function memory_log_due
+
+!===============================================================================
+!===============================================================================
+      subroutine log_memory_checkpoint(it,time,label)
+      use schism_glbl, only : rkind
+      implicit none
+
+      integer, intent(in) :: it
+      real(rkind), intent(in) :: time
+      character(len=*), intent(in) :: label
+
+      logical :: memory_log_due
+
+      if(.not.memory_log_due(it)) return
+
+      write(12,*)'MEMLOC step=',it,' time_s=',time,' loc=',trim(label)
+      call flush(12)
+      call log_memory_usage(it,time)
+
+      end subroutine log_memory_checkpoint
+
+!===============================================================================
+!===============================================================================
       subroutine log_memory_usage(it,time)
 !-------------------------------------------------------------------------------
 !     Best-effort memory logger for Linux/procfs.
@@ -1023,7 +1057,7 @@
       implicit none
 
       integer, parameter :: ik8=selected_int_kind(18)
-      integer, parameter :: mem_log_stride=5
+      integer, parameter :: mem_log_stride=1
       integer, parameter :: iu_proc=871, iu_mem=872, iu_host=873
 
       integer, intent(in) :: it
@@ -1033,11 +1067,12 @@
       integer(ik8) :: vmrss_kb,vmhwm_kb,vmsize_kb,memtotal_kb,memavail_kb
       real(rkind) :: rss_mib,hwm_mib,vmsize_mib,node_used_mib,node_avail_mib, &
      &node_total_mib,node_used_pct
+      logical :: memory_log_due
       logical, save :: first_log=.true.
       logical, save :: host_loaded=.false.
       character(len=128), save :: host_name='unknown'
 
-      if(it/=1.and.mod(it,mem_log_stride)/=0) return
+      if(.not.memory_log_due(it)) return
 
       if(.not.host_loaded) call read_host_name(host_name,host_loaded)
 

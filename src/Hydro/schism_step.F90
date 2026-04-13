@@ -376,6 +376,7 @@
 #endif
 
       time=it*dt 
+      call log_memory_checkpoint(it,time,'after_step_allocations')
      
 !Tsinghua group------------------
 !      nstp = 1+MOD(it-1,2) !1120:close
@@ -841,10 +842,12 @@
 
 
       if(mod(it,nstep_wwm)==0) then
+        call log_memory_checkpoint(it,time,'before_wwm_coupling_call')
         wtmp1=mpi_wtime()
         if(myrank==0) write(16,*)'starting WWM'
         !Overwrite SCHISM's RADFLAG by WWM's
         call WWM_II(it,icou_elfe_wwm,dt,nstep_wwm,RADFLAG)
+        call log_memory_checkpoint(it,time,'after_wwm_coupling_call')
 
 !       Outputs (via datapool):
 !       sbr(2,npa): momentum flux vector due to wave breaking (nearshore depth-induced breaking; see Bennis 2011)
@@ -875,6 +878,7 @@
 
         ! Ramp for the wave forces (Under energetic conditions, the ramp avoid the generation of oscillations at the shoreline)
         wwave_force = rampwafo*wwave_force
+        call log_memory_checkpoint(it,time,'after_wwm_state_update')
 
         ! Check outputs from WWM
         sum1=sum(out_wwm_windpar(1:npa,1:10))
@@ -987,6 +991,7 @@
         enddo !i
 !$OMP   end do
       endif !icou_elfe_wwm
+      call log_memory_checkpoint(it,time,'after_wwm_wind_stress_adjustment')
 #endif
 !$OMP end parallel
 
@@ -2050,6 +2055,8 @@
       wtmp1=wtmp2
 #endif
 !$OMP end master
+
+      call log_memory_checkpoint(it,time,'after_forcing_preparation')
 
 !...  Bottom drag coefficients for nchi=-1 or 1; Cd and Cdp for nchi=0 already read in
       if(nchi==-1) then !2D
@@ -4859,6 +4866,7 @@
 #endif
  
       deallocate(swild98)
+      call log_memory_checkpoint(it,time,'after_backtracking')
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       else
@@ -5780,6 +5788,8 @@
       wtmp1=wtmp2
 #endif
 
+      call log_memory_checkpoint(it,time,'after_preparations_before_solver')
+
 !...  setup coefficient matrix, sparsem, for the wave equation
 !...  No elevation essential b.c. are imposed yet but other b.c. is imposed
 
@@ -6302,6 +6312,8 @@
       write(12,*)'Time for solver=',tmp-cwtmp3,it
       cwtmp3=tmp !reset
 #endif
+
+      call log_memory_checkpoint(it,time,'after_free_surface_solver')
 
 !
 !************************************************************************
@@ -7006,6 +7018,9 @@
         bcc(2,:,1:nsa)=sv2
         su2=su2+stokes_hvel_side(1,:,:)
         sv2=sv2+stokes_hvel_side(2,:,:)
+#ifdef USE_WWM
+        call log_memory_checkpoint(it,time,'after_wwm_stokes_added')
+#endif
       endif
 #endif
 
@@ -7270,6 +7285,8 @@
 !  start transport
       wtmp1=wtmp2
 #endif
+
+      call log_memory_checkpoint(it,time,'after_momentum_and_wvel')
 
 !     Test backtracking alone with rotating Gausshill
       if(ibtrack_test==1) then !b-tropic w/o transport
@@ -8127,6 +8144,9 @@
         su2=su2-stokes_hvel_side(1,:,:)
         sv2=sv2-stokes_hvel_side(2,:,:)
         we=dr_dxy(1,:,1:nea)
+#ifdef USE_WWM
+        call log_memory_checkpoint(it,time,'after_wwm_stokes_restored')
+#endif
       endif
 #endif
 
@@ -8912,6 +8932,8 @@
       wtmp1=wtmp2
 #endif
 
+      call log_memory_checkpoint(it,time,'after_transport_levels_flux')
+
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 ! Write global output data
@@ -9254,6 +9276,9 @@
         if(iof_wwm(icount)==1) call writeout_nc(id_out_var(noutput+4), &
      &'roller_stokes_hvel',2,nvrt,npa,roller_stokes_hvel(1,:,:),roller_stokes_hvel(2,:,:))
 
+#ifdef USE_WWM
+        call log_memory_checkpoint(it,time,'after_wwm_output_write')
+#endif
 #endif
 
 #if defined USE_WW3
@@ -9537,6 +9562,7 @@
           varout_2dnode(icount-1,:)=out_wwm(1:np,8)
           varout_2dnode(icount,:)=out_wwm(1:np,7)
         endif !iof_wwm
+        call log_memory_checkpoint(it,time,'after_wwm_2d_output_pack')
 #endif /*USE_WWM*/
 
 #ifdef USE_SED
@@ -9879,6 +9905,7 @@
 !          enddo !j
 !        endif !iof_wwm
       enddo !i
+      call log_memory_checkpoint(it,time,'after_wwm_3d_node_output_pack')
 #endif /*USE_WWM*/
 
 #ifdef USE_GEN
@@ -10069,6 +10096,7 @@
 !     &200+nsend_varout,comm_schism,srqst7(nsend_varout),ierr)
 !          enddo !j
 !        endif !iof_wwm
+        call log_memory_checkpoint(it,time,'after_wwm_3d_side_output_pack')
 #endif /*USE_WWM*/
 
 #ifdef USE_ANALYSIS
@@ -10387,6 +10415,8 @@
 ! Start timing write hotstart section
       wtmp1=wtmp2
 #endif
+
+      call log_memory_checkpoint(it,time,'after_global_outputs')
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -10728,6 +10758,8 @@
       wtimer(13,1)=wtimer(13,1)+wtmp2-wtmp1
 #endif
 
+      call log_memory_checkpoint(it,time,'after_hotstart_output')
+
       call parallel_barrier !synchronize before starting next time step
 
       if(myrank==0) then
@@ -10781,6 +10813,6 @@
       cwtmp3=tmp !reset
 #endif
 
-      call log_memory_usage(it,time)
+      call log_memory_checkpoint(it,time,'after_step_cleanup')
 
       end subroutine schism_step
