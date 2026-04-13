@@ -1028,6 +1028,7 @@
 !===============================================================================
       subroutine log_memory_checkpoint(it,time,label)
       use schism_glbl, only : rkind
+      use ISO_FORTRAN_ENV, only : ERROR_UNIT ! access computing environment
       implicit none
 
       integer, intent(in) :: it
@@ -1038,8 +1039,8 @@
 
       if(.not.memory_log_due(it)) return
 
-      write(12,*)'MEMLOC step=',it,' time_s=',time,' loc=',trim(label)
-      call flush(12)
+      write(ERROR_UNIT,*)'MEMLOC step=',it,' time_s=',time,' loc=',trim(label)
+      ! call flush(ERROR_UNIT)
       call log_memory_usage(it,time)
 
       end subroutine log_memory_checkpoint
@@ -1054,6 +1055,7 @@
 !-------------------------------------------------------------------------------
       use schism_glbl, only : rkind
       use schism_msgp, only : myrank
+      use ISO_FORTRAN_ENV, only : ERROR_UNIT ! access computing environment
       implicit none
 
       integer, parameter :: ik8=selected_int_kind(18)
@@ -1104,16 +1106,16 @@
       endif
 
       if(first_log) then
-        write(12,*)'MEMLOG stride_steps=',mem_log_stride, &
+        write(ERROR_UNIT,*)'MEMLOG stride_steps=',mem_log_stride, &
      &             ' rank fields from /proc/self/status, node fields from /proc/meminfo'
         first_log=.false.
       endif
 
-      write(12,*)'MEM step=',it,' time_s=',time,' rank=',myrank,' node=',trim(host_name), &
+      write(ERROR_UNIT,*)'MEM step=',it,' time_s=',time,' rank=',myrank,' node=',trim(host_name), &
      &           ' rss_mib=',rss_mib,' hwm_mib=',hwm_mib,' vmsize_mib=',vmsize_mib, &
      &           ' node_used_mib=',node_used_mib,' node_avail_mib=',node_avail_mib, &
      &           ' node_total_mib=',node_total_mib,' node_used_pct=',node_used_pct
-      call flush(12)
+      call flush(ERROR_UNIT)
 
       contains
 
