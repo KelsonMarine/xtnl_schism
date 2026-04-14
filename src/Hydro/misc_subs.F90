@@ -2168,6 +2168,7 @@
 !#endif
       use schism_glbl
       use schism_msgp
+      use misc_modules, only : log_rkind_buffer_3d, log_wet_state
       implicit none
 !#ifndef USE_MPIMODULE
       include 'mpif.h'
@@ -2180,7 +2181,7 @@
 
       integer :: idry2(npa),idry_s2(nsa),idry_e2(nea)
       real(rkind) :: swild2(2)
-      real(rkind),allocatable :: swild(:,:,:)
+      real(rkind),allocatable, target :: swild(:,:,:)
       logical :: srwt_xchng(1),prwt_xchng(1)
       logical :: srwt_xchng_gb(1),prwt_xchng_gb(1)
       logical :: cwtime
@@ -2188,6 +2189,7 @@
 
 ! Flag for comm timing
       cwtime=it/=iths
+      call log_memory_checkpoint(it,time_stamp,'enter_levels0')
 !$OMP parallel default(shared) private(i,j,ie,n1,n2,n3,n4,k,utmp,vtmp,ttmp,stmp,icount,nd,jj,isd)
 
 !...  z-coor. for nodes
@@ -2557,14 +2559,20 @@
         call mpi_allreduce(srwt_xchng,srwt_xchng_gb,1,MPI_LOGICAL,MPI_LOR,comm,ierr)
         if(ierr/=MPI_SUCCESS) call parallel_abort('levels0: allreduce srwt_xchng_gb',ierr)
 !'
+        call log_wet_state(it,time_stamp,'levels0_exchange_flags',count(idry2(1:np)==0), &
+     &                     count(idry_s2(1:ns)==0),count(idry_e2(1:ne)==0), &
+     &                     prwt_xchng_gb(1),srwt_xchng_gb(1))
 #ifdef INCLUDE_TIMING
         if(cwtime) wtimer(10,2)=wtimer(10,2)+mpi_wtime()-cwtmp
 #endif
 
 !       Allocate temporary array
         if(prwt_xchng_gb(1).or.srwt_xchng_gb(1)) then
+          call log_memory_checkpoint(it,time_stamp,'before_levels0_rewet_buffer_alloc')
           allocate(swild(4,nvrt,nsa),stat=istat)
           if(istat/=0) call parallel_abort('Levels0: fail to allocate swild')
+          call log_memory_checkpoint(it,time_stamp,'after_levels0_rewet_buffer_alloc')
+          call log_rkind_buffer_3d(it,time_stamp,'levels0_rewet_buffer_alloc',swild)
 !'
         endif
 
@@ -2606,7 +2614,10 @@
           !ssd(:,:)=swild(4,:,:)
         endif
 
-        if(prwt_xchng_gb(1).or.srwt_xchng_gb(1)) deallocate(swild)
+        if(prwt_xchng_gb(1).or.srwt_xchng_gb(1)) then
+          call log_rkind_buffer_3d(it,time_stamp,'levels0_rewet_buffer_pre_dealloc',swild)
+          deallocate(swild)
+        endif
       endif !nproc>1
 
 !      close(10)
@@ -2615,6 +2626,8 @@
       idry=idry2
       idry_s=idry_s2
       idry_e=idry_e2
+      call log_wet_state(it,time_stamp,'exit_levels0',count(idry(1:np)==0),count(idry_s(1:ns)==0),count(idry_e(1:ne)==0))
+      call log_memory_checkpoint(it,time_stamp,'exit_levels0')
 
       end subroutine levels0
 
@@ -2630,6 +2643,7 @@
 !#endif
       use schism_glbl
       use schism_msgp
+      use misc_modules, only : log_rkind_buffer_3d
       implicit none
 !#ifndef USE_MPIMODULE
       include 'mpif.h'
@@ -2645,10 +2659,13 @@
       !don't change dimension of swild2
       integer :: nwild(4)
       real(rkind) :: swild(2),swild2(nvrt,2),swild3(nvrt),swild5(4,2)
-      real(rkind), allocatable :: swild4(:,:,:),ufg(:,:,:),vfg(:,:,:) !swild4 used for exchange
+      real(rkind), allocatable, target :: swild4(:,:,:),ufg(:,:,:),vfg(:,:,:) !swild4 used for exchange
 
+      call log_memory_checkpoint(it_main,time_stamp,'enter_nodalvel')
       allocate(ufg(4,nvrt,nea),vfg(4,nvrt,nea),stat=istat)
       if(istat/=0) call parallel_abort('nodalvel: alloc')
+      call log_rkind_buffer_3d(it_main,time_stamp,'nodalvel_ufg_alloc',ufg)
+      call log_rkind_buffer_3d(it_main,time_stamp,'nodalvel_vfg_alloc',vfg)
 
 !$OMP parallel default(shared) private(i,k,j,isd,isd2,isd3,swild5,ud1,ud2, &
 !$OMP vd1,vd2,weit_w,icount,ie,id,weit,l,nfac0,ltmp,ltmp2,nfac)
@@ -2915,6 +2932,7 @@
 !     Exchange ghosts
       allocate(swild4(3,nvrt,npa),stat=istat)
       if(istat/=0) call parallel_abort('nodalvel: fail to allocate')
+      call log_rkind_buffer_3d(it_main,time_stamp,'nodalvel_swild4_alloc',swild4)
 !new21
       swild4(1,:,:)=uu2(:,:)
       swild4(2,:,:)=vv2(:,:)
@@ -2929,9 +2947,13 @@
       uu2(:,:)=swild4(1,:,:)
       vv2(:,:)=swild4(2,:,:)
       ww2(:,:)=swild4(3,:,:)
+      call log_rkind_buffer_3d(it_main,time_stamp,'nodalvel_swild4_pre_dealloc',swild4)
       deallocate(swild4)
 
+      call log_rkind_buffer_3d(it_main,time_stamp,'nodalvel_ufg_pre_dealloc',ufg)
+      call log_rkind_buffer_3d(it_main,time_stamp,'nodalvel_vfg_pre_dealloc',vfg)
       deallocate(ufg,vfg)
+      call log_memory_checkpoint(it_main,time_stamp,'exit_nodalvel')
 
 !...  Compute discrepancy between avergaed and elemental vel. vectors 
 !      do i=1,np

@@ -226,7 +226,7 @@
       real(4),allocatable :: swild9(:,:) !used in tracer nudging
       real(4),allocatable :: rwild6(:,:) !nws=4 only
       real(rkind),allocatable :: rwild(:,:),uth(:,:),vth(:,:),d2uv(:,:,:),dr_dxy(:,:,:),bcc(:,:,:)
-      real(rkind),allocatable :: swild99(:,:),swild98(:,:,:) !used for exchange (deallocate immediately afterwards)
+      real(rkind),allocatable, target :: swild99(:,:),swild98(:,:,:) !used for exchange (deallocate immediately afterwards)
       real(rkind),allocatable :: swild96(:,:,:),swild97(:,:,:) !used in ELAD (deallocate immediately afterwards)
       real(rkind),allocatable :: swild95(:,:,:) !for analysis module
       real(rkind),allocatable :: swild13(:) 
@@ -7779,7 +7779,9 @@
 !        if(itr_met<=2) then !upwind or explicit TVD
 !          call do_transport_tvd(it,ltvd,ntracers,difnum_max_l) !,nvrt,npa,dfh)
 !        else if(itr_met==3.or.itr_met==4) then !vertically implicit TVD
+        call log_memory_checkpoint(it,time,'before_do_transport_tvd_imp')
         call do_transport_tvd_imp(it,ntracers,difnum_max_l) !,nvrt,npa,dfh)
+        call log_memory_checkpoint(it,time,'after_do_transport_tvd_imp')
 !        endif !itr_met
         if(myrank==0) write(16,*)'done tracer transport...'
 
@@ -7797,8 +7799,11 @@
         if(difnum_max_l>difnum_max_l2) difnum_max_l2=difnum_max_l
 
 !       Use swild98 to temporarily store values at elements and whole levels (for conversion later)
+        call log_memory_checkpoint(it,time,'before_post_transport_swild98_alloc')
         allocate(swild98(ntracers,nvrt,nea),stat=istat)
         if(istat/=0) call parallel_abort('STEP: fail to alloc (1.1)')
+        call log_memory_checkpoint(it,time,'after_post_transport_swild98_alloc')
+        call log_rkind_buffer_3d(it,time,'post_transport_swild98_alloc',swild98)
 
 !$OMP parallel default(shared) private(i,bigv,rat,j,jj,itmp1,itmp2,k,trnu,mm,swild,tmp,zrat, &
 !$OMP ta,ie,kin,swild_m,swild_w,tmp0,vnf,htot,top,dzz1,tmp1,tmp2)
@@ -8119,6 +8124,7 @@
 !$OMP   end do
 !$OMP end parallel
 
+        call log_rkind_buffer_3d(it,time,'post_transport_swild98_pre_dealloc',swild98)
         deallocate(swild98)
 !Debug
 !        write(12,*)'stage 2'
@@ -8323,8 +8329,12 @@
 
 !     Compute mass @ column before level change for adjusting mass
       if(max_iadjust_mass_consv>0) then
+        call log_memory_checkpoint(it,time,'before_mass_adjust_buffers_alloc')
         allocate(swild99(ntracers,ne),swild98(ntracers,1,1))
         swild99=0.d0
+        call log_memory_checkpoint(it,time,'after_mass_adjust_buffers_alloc')
+        call log_rkind_buffer_2d(it,time,'mass_adjust_swild99_alloc',swild99)
+        call log_rkind_buffer_3d(it,time,'mass_adjust_swild98_alloc',swild98)
         do i=1,ne
           if(idry_e(i)==1) cycle
 
@@ -8336,11 +8346,14 @@
       endif
 
 !...  Recompute vgrid and calculate rewetted pts
+      call log_memory_checkpoint(it,time,'before_recompute_levels')
       if(inunfl==0) then
         call levels0(iths_main,it)
       else
         call levels1(iths_main,it)
       endif
+      call log_memory_checkpoint(it,time,'after_recompute_levels')
+      call log_wet_state(it,time,'after_recompute_levels',count(idry(1:np)==0),count(idry_s(1:ns)==0),count(idry_e(1:ne)==0))
       if(myrank==0) write(16,*) 'done recomputing levels...'
 
 !     Adjust mass after level change
@@ -8384,11 +8397,15 @@
             endif !rat
           endif !swild3
         enddo !j
+        call log_rkind_buffer_2d(it,time,'mass_adjust_swild99_pre_dealloc',swild99)
+        call log_rkind_buffer_3d(it,time,'mass_adjust_swild98_pre_dealloc',swild98)
         deallocate(swild99,swild98)
       endif !mass correction
 
 !...  Compute nodal vel. for output and next backtracking
+      call log_memory_checkpoint(it,time,'before_nodalvel')
       call nodalvel
+      call log_memory_checkpoint(it,time,'after_nodalvel')
 
 #ifdef USE_SED      
       if(itur==5) then

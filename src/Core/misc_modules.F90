@@ -163,4 +163,103 @@
 !===============================================================================
 !===============================================================================
 
+      subroutine log_rkind_buffer_2d(it,time,label,arr)
+      use schism_glbl, only : rkind
+      use schism_msgp, only : myrank
+      use ISO_FORTRAN_ENV, only : ERROR_UNIT
+      use ISO_C_BINDING, only : c_ptr,c_loc,c_intptr_t
+      implicit none
+
+      integer, intent(in) :: it
+      real(rkind), intent(in) :: time
+      character(len=*), intent(in) :: label
+      real(rkind), intent(in), target :: arr(:,:)
+
+      type(c_ptr) :: addr_ptr
+      integer(c_intptr_t) :: addr_int, bytes
+      integer :: lb1,lb2
+      character(len=32) :: addr_hex
+
+      lb1=lbound(arr,1)
+      lb2=lbound(arr,2)
+      addr_ptr=c_loc(arr(lb1,lb2))
+      addr_int=transfer(addr_ptr,addr_int)
+      bytes=int(storage_size(arr),c_intptr_t)/8_c_intptr_t*int(size(arr),c_intptr_t)
+      write(addr_hex,'(z0)') addr_int
+
+      write(ERROR_UNIT,*) 'MEMBUF step=',it,' time_s=',time,' rank=',myrank, &
+     &  ' loc=',trim(label),' addr=0x'//trim(addr_hex),' bytes=',bytes, &
+     &  ' lbounds=',lb1,lb2,' shape=',size(arr,1),size(arr,2)
+      call flush(ERROR_UNIT)
+
+      end subroutine log_rkind_buffer_2d
+
+!===============================================================================
+!===============================================================================
+
+      subroutine log_rkind_buffer_3d(it,time,label,arr)
+      use schism_glbl, only : rkind
+      use schism_msgp, only : myrank
+      use ISO_FORTRAN_ENV, only : ERROR_UNIT
+      use ISO_C_BINDING, only : c_ptr,c_loc,c_intptr_t
+      implicit none
+
+      integer, intent(in) :: it
+      real(rkind), intent(in) :: time
+      character(len=*), intent(in) :: label
+      real(rkind), intent(in), target :: arr(:,:,:)
+
+      type(c_ptr) :: addr_ptr
+      integer(c_intptr_t) :: addr_int, bytes
+      integer :: lb1,lb2,lb3
+      character(len=32) :: addr_hex
+
+      lb1=lbound(arr,1)
+      lb2=lbound(arr,2)
+      lb3=lbound(arr,3)
+      addr_ptr=c_loc(arr(lb1,lb2,lb3))
+      addr_int=transfer(addr_ptr,addr_int)
+      bytes=int(storage_size(arr),c_intptr_t)/8_c_intptr_t*int(size(arr),c_intptr_t)
+      write(addr_hex,'(z0)') addr_int
+
+      write(ERROR_UNIT,*) 'MEMBUF step=',it,' time_s=',time,' rank=',myrank, &
+     &  ' loc=',trim(label),' addr=0x'//trim(addr_hex),' bytes=',bytes, &
+     &  ' lbounds=',lb1,lb2,lb3,' shape=',size(arr,1),size(arr,2),size(arr,3)
+      call flush(ERROR_UNIT)
+
+      end subroutine log_rkind_buffer_3d
+
+!===============================================================================
+!===============================================================================
+
+      subroutine log_wet_state(it,time,label,nwet_nodes,nwet_sides,nwet_elems,rewet_p,rewet_s)
+      use schism_glbl, only : rkind
+      use schism_msgp, only : myrank
+      use ISO_FORTRAN_ENV, only : ERROR_UNIT
+      implicit none
+
+      integer, intent(in) :: it,nwet_nodes,nwet_sides,nwet_elems
+      real(rkind), intent(in) :: time
+      character(len=*), intent(in) :: label
+      logical, intent(in), optional :: rewet_p,rewet_s
+      logical :: prwt_log,srwt_log
+
+      prwt_log=.false.
+      srwt_log=.false.
+      if(present(rewet_p)) prwt_log=rewet_p
+      if(present(rewet_s)) srwt_log=rewet_s
+      write(ERROR_UNIT,*) 'MEMWET step=',it,' time_s=',time,' rank=',myrank, &
+     &  ' loc=',trim(label),' wet_nodes=',nwet_nodes,' wet_sides=',nwet_sides, &
+     &  ' wet_elems=',nwet_elems
+      if(present(rewet_p).or.present(rewet_s)) then
+        write(ERROR_UNIT,*) 'MEMWETX step=',it,' time_s=',time,' rank=',myrank, &
+     &    ' loc=',trim(label),' prwt=',prwt_log,' srwt=',srwt_log
+      endif
+      call flush(ERROR_UNIT)
+
+      end subroutine log_wet_state
+
+!===============================================================================
+!===============================================================================
+
       end module misc_modules

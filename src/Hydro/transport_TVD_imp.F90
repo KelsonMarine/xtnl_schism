@@ -60,15 +60,15 @@
 !      real(rkind), parameter :: eps2=1e-14 !convergence criteria (implicit)
 
 !     Working temporary arrays in this routine
-      real(rkind), allocatable :: trel_tmp(:,:,:) !tracer @ elements and half levels
-      real(rkind), allocatable :: flux_adv_hface(:,:) ! original horizontal flux (the local x-driection) 
-      real(rkind), allocatable :: flux_mod_hface(:,:,:) !limited advective fluxes on horizontal faces
+      real(rkind), allocatable, target :: trel_tmp(:,:,:) !tracer @ elements and half levels
+      real(rkind), allocatable, target :: flux_adv_hface(:,:) ! original horizontal flux (the local x-driection) 
+      real(rkind), allocatable, target :: flux_mod_hface(:,:,:) !limited advective fluxes on horizontal faces
       !weno>
-      real(rkind), allocatable :: trel_tmp0(:,:,:) !tracer @ elements and half levels
-      real(rkind), allocatable :: trsd_tmp(:,:,:) !tmp concentration on horizontal faces
-      real(rkind), allocatable :: trsd_tmp0(:,:,:) !tmp concentration on horizontal faces, only used for message-passing
+      real(rkind), allocatable, target :: trel_tmp0(:,:,:) !tracer @ elements and half levels
+      real(rkind), allocatable, target :: trsd_tmp(:,:,:) !tmp concentration on horizontal faces
+      real(rkind), allocatable, target :: trsd_tmp0(:,:,:) !tmp concentration on horizontal faces, only used for message-passing
       !<weno
-      real(rkind), allocatable :: up_rat_hface(:,:,:) !upwind ratios for horizontal faces
+      real(rkind), allocatable, target :: up_rat_hface(:,:,:) !upwind ratios for horizontal faces
 !      real(rkind), allocatable :: psum2(:,:,:)
 
       integer :: iupwind_e(nea) !to mark upwind prisms when TVD is used
@@ -136,11 +136,16 @@
       cwtmp2=mpi_wtime()
 #endif
 
+      call log_memory_checkpoint(it,time_stamp,'enter_do_transport_tvd_imp')
       allocate(trel_tmp(ntr,nvrt,0:nea),flux_adv_hface(nvrt,nsa),tr_min_max(2,ntr), &
               &flux_mod_hface(ntr,nvrt,ns),up_rat_hface(ntr,nvrt,nsa),stat=istat) 
       trel_tmp=0.d0
 !      allocate(psum2(ntr,nvrt,ne))
       if(istat/=0) call parallel_abort('Transport: fail to allocate')
+      call log_rkind_buffer_3d(it,time_stamp,'transport_trel_tmp_alloc',trel_tmp)
+      call log_rkind_buffer_2d(it,time_stamp,'transport_flux_adv_hface_alloc',flux_adv_hface)
+      call log_rkind_buffer_3d(it,time_stamp,'transport_flux_mod_hface_alloc',flux_mod_hface)
+      call log_rkind_buffer_3d(it,time_stamp,'transport_up_rat_hface_alloc',up_rat_hface)
 
 !     For TVD, prepare some arrays for 2-tier ghosts
 #ifdef INCLUDE_TIMING
@@ -278,6 +283,8 @@
       if(istat/=0) call parallel_abort('failed in alloc. trsd_tmp and trsd_tmp0') 
       allocate(wm(max(mnweno1,mnweno2)),wm1(max(mnweno1,mnweno2)),wm2(max(mnweno1,mnweno2)), stat=istat)
       if(istat/=0) call parallel_abort('failed in alloc. wm') 
+      call log_rkind_buffer_3d(it,time_stamp,'transport_trsd_tmp_alloc',trsd_tmp)
+      call log_rkind_buffer_3d(it,time_stamp,'transport_trsd_tmp0_alloc',trsd_tmp0)
 
       tr_min_max(1,1)=tempmin; tr_min_max(2,1)=tempmax;
       tr_min_max(1,2)=saltmin; tr_min_max(2,2)=saltmax;
@@ -290,6 +297,7 @@
         allocate(trel_tmp0(ntr,nvrt,0:nea),stat=istat) 
         if(istat/=0) call parallel_abort('Transport: fail to allocate')
         trel_tmp0=0.d0
+        call log_rkind_buffer_3d(it,time_stamp,'transport_trel_tmp0_alloc',trel_tmp0)
       endif
 
       !RK coefficients (Shu and Osher, 1988)
@@ -903,6 +911,9 @@
 !$OMP end parallel
 
 !     Deallocate temp. arrays
+      call log_rkind_buffer_3d(it,time_stamp,'transport_trsd_tmp_pre_dealloc',trsd_tmp)
+      call log_rkind_buffer_3d(it,time_stamp,'transport_trsd_tmp0_pre_dealloc',trsd_tmp0)
+      if(allocated(trel_tmp0)) call log_rkind_buffer_3d(it,time_stamp,'transport_trel_tmp0_pre_dealloc',trel_tmp0)
       deallocate(trsd_tmp,trsd_tmp0,wm1,wm2,wm)
       if(allocated(trel_tmp0)) deallocate(trel_tmp0)
 
@@ -2128,7 +2139,12 @@
 #endif
 
 !     Deallocate temp. arrays
+      call log_rkind_buffer_3d(it,time_stamp,'transport_trel_tmp_pre_dealloc',trel_tmp)
+      call log_rkind_buffer_2d(it,time_stamp,'transport_flux_adv_hface_pre_dealloc',flux_adv_hface)
+      call log_rkind_buffer_3d(it,time_stamp,'transport_flux_mod_hface_pre_dealloc',flux_mod_hface)
+      call log_rkind_buffer_3d(it,time_stamp,'transport_up_rat_hface_pre_dealloc',up_rat_hface)
       deallocate(trel_tmp,flux_adv_hface,flux_mod_hface,up_rat_hface,tr_min_max)
+      call log_memory_checkpoint(it,time_stamp,'exit_do_transport_tvd_imp')
 
       end subroutine do_transport_tvd_imp
 
