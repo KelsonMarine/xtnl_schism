@@ -33,6 +33,7 @@ module schism_msgp
 !#ifdef USE_MPIMODULE
 !  use mpi
 !#endif
+  use iso_fortran_env, only: error_unit
   use schism_glbl, only : rkind, llist_type,nvrt, &
                        &ne_global,ne,neg,nea,ielg,iegl,iegrpv,elnode,elside, &
                        &np_global,np,npg,npa,iplg,ipgl,nne,indel,dp, &
@@ -3105,6 +3106,13 @@ endif !ntracers>0
 
 end subroutine msgp_init
 
+subroutine log_exchange_boundary(routine_name, phase)
+  implicit none
+  character(len=*), intent(in) :: routine_name, phase
+
+  if(myrank<120) write(error_unit,'(a,1x,a)') trim(phase), trim(routine_name)
+end subroutine log_exchange_boundary
+
 
 subroutine exchange_e2d(e2d_data)
 !-------------------------------------------------------------------------------
@@ -3115,6 +3123,8 @@ subroutine exchange_e2d(e2d_data)
   real(rkind),intent(inout) :: e2d_data(:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_e2d','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3137,6 +3147,7 @@ subroutine exchange_e2d(e2d_data)
   call mpi_waitall(nnbr,e2dsend_rqst,e2dsend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_e2d: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_e2d','LEAVING')
 end subroutine exchange_e2d
 
 subroutine exchange_e2di(e2di_data)
@@ -3148,6 +3159,8 @@ subroutine exchange_e2di(e2di_data)
   integer,intent(inout) :: e2di_data(:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_e2di','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3170,6 +3183,7 @@ subroutine exchange_e2di(e2di_data)
   call mpi_waitall(nnbr,e2disend_rqst,e2disend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_e2di: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_e2di','LEAVING')
 end subroutine exchange_e2di
 
 subroutine exchange_e3dw(e3dw_data)
@@ -3182,6 +3196,8 @@ subroutine exchange_e3dw(e3dw_data)
   real(rkind),intent(inout) :: e3dw_data(:,:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_e3dw','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3204,6 +3220,7 @@ subroutine exchange_e3dw(e3dw_data)
   call mpi_waitall(nnbr,e3dwsend_rqst,e3dwsend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_e3dw: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_e3dw','LEAVING')
 end subroutine exchange_e3dw
 
 subroutine exchange_p2d(p2d_data)
@@ -3214,6 +3231,8 @@ subroutine exchange_p2d(p2d_data)
   real(rkind),intent(inout) :: p2d_data(:) !dimension >= npa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p2d','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3244,6 +3263,7 @@ subroutine exchange_p2d(p2d_data)
   call mpi_waitall(nnbr_p,p2dsend_rqst,p2dsend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p2d: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p2d','LEAVING')
 end subroutine exchange_p2d
 
 subroutine exchange_p3dw(p3dw_data)
@@ -3254,6 +3274,8 @@ subroutine exchange_p3dw(p3dw_data)
   real(rkind),intent(inout) :: p3dw_data(:,:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p3dw','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3284,6 +3306,7 @@ subroutine exchange_p3dw(p3dw_data)
   call mpi_waitall(nnbr_p,p3dwsend_rqst,p3dwsend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p3dw: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p3dw','LEAVING')
 end subroutine exchange_p3dw
 
 subroutine exchange_p2d_9(p2d_9_data)
@@ -3294,6 +3317,8 @@ subroutine exchange_p2d_9(p2d_9_data)
   real(rkind),intent(inout) :: p2d_9_data(:,:,:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p2d_9','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3324,6 +3349,7 @@ subroutine exchange_p2d_9(p2d_9_data)
   call mpi_waitall(nnbr_p,p2d_9_send_rqst,p2d_9_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p2d_9: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p2d_9','LEAVING')
 end subroutine exchange_p2d_9
 
 subroutine exchange_p2di(p2di_data)
@@ -3334,6 +3360,8 @@ subroutine exchange_p2di(p2di_data)
   integer,intent(inout) :: p2di_data(:) !dimension >= npa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p2di','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3364,6 +3392,7 @@ subroutine exchange_p2di(p2di_data)
   call mpi_waitall(nnbr_p,p2disend_rqst,p2disend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p2di: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p2di','LEAVING')
 end subroutine exchange_p2di
 
 
@@ -3375,6 +3404,8 @@ subroutine exchange_s2d(s2d_data)
   real(rkind),intent(inout) :: s2d_data(:) !dimension >= nsa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s2d','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3405,6 +3436,7 @@ subroutine exchange_s2d(s2d_data)
   call mpi_waitall(nnbr_p,s2dsend_rqst,s2dsend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s2d: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s2d','LEAVING')
 end subroutine exchange_s2d
 
 subroutine exchange_s2d_9(s2d_9_data)
@@ -3415,6 +3447,8 @@ subroutine exchange_s2d_9(s2d_9_data)
   real(rkind),intent(inout) :: s2d_9_data(:,:) !indices must be (9,nm) where nm>=nsa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s2d_9','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3445,6 +3479,7 @@ subroutine exchange_s2d_9(s2d_9_data)
   call mpi_waitall(nnbr_p,s2d_9_send_rqst,s2d_9_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s2d_9: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s2d_9','LEAVING')
 end subroutine exchange_s2d_9
 
 subroutine exchange_s2di(s2di_data)
@@ -3455,6 +3490,8 @@ subroutine exchange_s2di(s2di_data)
   integer,intent(inout) :: s2di_data(:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s2di','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3485,6 +3522,7 @@ subroutine exchange_s2di(s2di_data)
   call mpi_waitall(nnbr_p,s2disend_rqst,s2disend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s2di: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s2di','LEAVING')
 end subroutine exchange_s2di
 
 
@@ -3496,6 +3534,8 @@ subroutine exchange_s3dw(s3dw_data)
   real(rkind),intent(inout) :: s3dw_data(:,:) !(nvrt,nm) where nm>=nsa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s3dw','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3526,6 +3566,7 @@ subroutine exchange_s3dw(s3dw_data)
   call mpi_waitall(nnbr_p,s3dwsend_rqst,s3dwsend_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s3dw: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s3dw','LEAVING')
 end subroutine exchange_s3dw
 
 !-------------------------------------------------------------------------------
@@ -3540,6 +3581,8 @@ subroutine exchange_s3d_5(s3d_5_data)
   real(rkind),intent(inout) :: s3d_5_data(:,:,:) !indices must be (5,nvrt,nm) where nm>=nsa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s3d_5','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3570,6 +3613,7 @@ subroutine exchange_s3d_5(s3d_5_data)
   call mpi_waitall(nnbr_p,s3d_5_send_rqst,s3d_5_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s3d_5: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s3d_5','LEAVING')
 end subroutine exchange_s3d_5
 
 subroutine exchange_s3d_4(s3d_4_data)
@@ -3580,6 +3624,8 @@ subroutine exchange_s3d_4(s3d_4_data)
   real(rkind),intent(inout) :: s3d_4_data(:,:,:) !indices must be (4,nvrt,nm) where nm>=nsa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s3d_4','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3610,6 +3656,7 @@ subroutine exchange_s3d_4(s3d_4_data)
   call mpi_waitall(nnbr_p,s3d_4_send_rqst,s3d_4_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s3d_4: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s3d_4','LEAVING')
 end subroutine exchange_s3d_4
 
 subroutine exchange_s3d_2(s3d_2_data)
@@ -3620,6 +3667,8 @@ subroutine exchange_s3d_2(s3d_2_data)
   real(rkind),intent(inout) :: s3d_2_data(:,:,:) !indices must be (2,nvrt,nm) where nm>=nsa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s3d_2','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3650,6 +3699,7 @@ subroutine exchange_s3d_2(s3d_2_data)
   call mpi_waitall(nnbr_p,s3d_2_send_rqst,s3d_2_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s3d_2: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s3d_2','LEAVING')
 end subroutine exchange_s3d_2
 
 subroutine exchange_s3d_tr2(s3d_tr2_data)
@@ -3660,6 +3710,8 @@ subroutine exchange_s3d_tr2(s3d_tr2_data)
   real(rkind),intent(inout) :: s3d_tr2_data(:,:,:) !indices must be (ntracers,nvrt,nm) where nm>=nsa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s3d_tr2','ENTERING')
 
   ! Handle single processor case
   if(nproc==1.or.ntracers<=0) return
@@ -3690,6 +3742,7 @@ subroutine exchange_s3d_tr2(s3d_tr2_data)
   call mpi_waitall(nnbr_p,s3d_tr2_send_rqst,s3d_tr2_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s3d_tr2: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_s3d_tr2','LEAVING')
 end subroutine exchange_s3d_tr2
 
 !weno>
@@ -3701,6 +3754,8 @@ subroutine exchange_s3d_tr3(s3d_tr3_tmp0,s3d_tr3_tmp)
   real(rkind),intent(inout) :: s3d_tr3_tmp0(:,:,:),s3d_tr3_tmp(:,:,:)  !indices must be (ntracers,nvrt,nm) where nm>=ns
   integer :: i,j
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_s3d_tr3','ENTERING')
 
   ! Handle single processor case
   if(nproc==1.or.ntracers<=0) return
@@ -3741,6 +3796,7 @@ subroutine exchange_s3d_tr3(s3d_tr3_tmp0,s3d_tr3_tmp)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_s3d_tr3: waitall send',ierr)
 
 
+  call log_exchange_boundary('exchange_s3d_tr3','LEAVING')
 end subroutine exchange_s3d_tr3
 !<weno
 
@@ -3754,6 +3810,8 @@ subroutine exchange_p3d_2(p3d_2_data)
   real(rkind),intent(inout) :: p3d_2_data(:,:,:) !indices must be (2,nvrt,nm) where nm>=npa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p3d_2','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3784,6 +3842,7 @@ subroutine exchange_p3d_2(p3d_2_data)
   call mpi_waitall(nnbr_p,p3d_2_send_rqst,p3d_2_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p3d_2: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p3d_2','LEAVING')
 end subroutine exchange_p3d_2
 
 subroutine exchange_p3d_3(p3d_3_data)
@@ -3794,6 +3853,8 @@ subroutine exchange_p3d_3(p3d_3_data)
   real(rkind),intent(inout) :: p3d_3_data(:,:,:) !indices must be (3,nvrt,nm) where nm>=npa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p3d_3','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3824,6 +3885,7 @@ subroutine exchange_p3d_3(p3d_3_data)
   call mpi_waitall(nnbr_p,p3d_3_send_rqst,p3d_3_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p3d_3: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p3d_3','LEAVING')
 end subroutine exchange_p3d_3
 
 subroutine exchange_p3d_4(p3d_4_data)
@@ -3834,6 +3896,8 @@ subroutine exchange_p3d_4(p3d_4_data)
   real(rkind),intent(inout) :: p3d_4_data(:,:,:) !indices must be (4,nvrt,nm) where nm>=npa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p3d_4','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -3864,6 +3928,7 @@ subroutine exchange_p3d_4(p3d_4_data)
   call mpi_waitall(nnbr_p,p3d_4_send_rqst,p3d_4_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p3d_4: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p3d_4','LEAVING')
 end subroutine exchange_p3d_4
 
 subroutine exchange_p3d_tr(p3d_tr_data)
@@ -3874,6 +3939,8 @@ subroutine exchange_p3d_tr(p3d_tr_data)
   real(rkind),intent(inout) :: p3d_tr_data(:,:,:) !indices must be (ntracers,nvrt,nm) where nm>=npa
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p3d_tr','ENTERING')
 
   ! Handle single processor case
   if(nproc==1.or.ntracers<=0) return
@@ -3904,6 +3971,7 @@ subroutine exchange_p3d_tr(p3d_tr_data)
   call mpi_waitall(nnbr_p,p3d_tr_send_rqst,p3d_tr_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p3d_tr: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p3d_tr','LEAVING')
 end subroutine exchange_p3d_tr
 
 #ifdef USE_WWM
@@ -3916,6 +3984,8 @@ subroutine exchange_p4d_wwm(p4d_wwm_data)
   ! integer,save :: p4d_wwm_call_count=0
   integer :: i,j,ierr2,recv_type_size,send_type_size
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p4d_wwm','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -4000,6 +4070,7 @@ subroutine exchange_p4d_wwm(p4d_wwm_data)
   ! write(12,*) 'DBG exchange_p4d_wwm end: myrank=',myrank,' call=',p4d_wwm_call_count
   ! flush(12)
 
+  call log_exchange_boundary('exchange_p4d_wwm','LEAVING')
 end subroutine exchange_p4d_wwm
 
 
@@ -4011,6 +4082,8 @@ subroutine exchange_p3d_wwm(p3d_wwm_data)
   real(rkind),intent(inout) :: p3d_wwm_data(:,:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_p3d_wwm','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -4041,6 +4114,7 @@ subroutine exchange_p3d_wwm(p3d_wwm_data)
   call mpi_waitall(nnbr_p,p3d_wwm_send_rqst,p3d_wwm_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_p3d_wwm: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_p3d_wwm','LEAVING')
 end subroutine exchange_p3d_wwm
 
 #endif /*USE_WWM*/
@@ -4088,6 +4162,8 @@ subroutine exchange_e3d_tr2(e3d_tr2_data)
   integer :: i
 !-------------------------------------------------------------------------------
 
+  call log_exchange_boundary('exchange_e3d_tr2','ENTERING')
+
   ! Handle single processor case
   if(nproc==1.or.ntracers<=0) return
 
@@ -4109,6 +4185,7 @@ subroutine exchange_e3d_tr2(e3d_tr2_data)
   call mpi_waitall(nnbr,e3d_tr2_send_rqst,e3d_tr2_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_e3d_tr2: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_e3d_tr2','LEAVING')
 end subroutine exchange_e3d_tr2
 
 subroutine exchange_e3d_2(e3d_2_data)
@@ -4120,6 +4197,8 @@ subroutine exchange_e3d_2(e3d_2_data)
   real(rkind),intent(inout) :: e3d_2_data(:,:,:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_e3d_2','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -4142,6 +4221,7 @@ subroutine exchange_e3d_2(e3d_2_data)
   call mpi_waitall(nnbr,e3d_2_send_rqst,e3d_2_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_e3d_2: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_e3d_2','LEAVING')
 end subroutine exchange_e3d_2
 
 subroutine exchange_e2di_2t(e2di_2t_data)
@@ -4153,6 +4233,8 @@ subroutine exchange_e2di_2t(e2di_2t_data)
   integer,intent(inout) :: e2di_2t_data(:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_e2di_2t','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -4175,6 +4257,7 @@ subroutine exchange_e2di_2t(e2di_2t_data)
   call mpi_waitall(nnbr_2t,e2di_2t_send_rqst,e2di_2t_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_e2di_2t: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_e2di_2t','LEAVING')
 end subroutine exchange_e2di_2t
 
 subroutine exchange_e3d_2t_tr(e3d_2t_data)
@@ -4186,6 +4269,8 @@ subroutine exchange_e3d_2t_tr(e3d_2t_data)
   real(rkind),intent(inout) :: e3d_2t_data(:,:,:)
   integer :: i
 !-------------------------------------------------------------------------------
+
+  call log_exchange_boundary('exchange_e3d_2t_tr','ENTERING')
 
   ! Handle single processor case
   if(nproc==1) return
@@ -4208,6 +4293,7 @@ subroutine exchange_e3d_2t_tr(e3d_2t_data)
   call mpi_waitall(nnbr_2t,e3d_2t_tr_send_rqst,e3d_2t_tr_send_stat,ierr)
   if(ierr/=MPI_SUCCESS) call parallel_abort('exchange_e3d_2t_tr: waitall send',ierr)
 
+  call log_exchange_boundary('exchange_e3d_2t_tr','LEAVING')
 end subroutine exchange_e3d_2t_tr
 
 end module schism_msgp
