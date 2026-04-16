@@ -130,6 +130,7 @@ subroutine schism_main
   call schism_init0(iths,ntime)
 
   call mpi_barrier(comm_schism,ierr)
+  return
 
   do it=iths+1,ntime
     call schism_step0(it)
@@ -148,7 +149,7 @@ subroutine schism_init0(iths,ntime)
   if(task_id==1) then !compute
     call schism_init(0,'./',iths,ntime)
   else !I/O scribes
-    call scribe_init('./',iths,ntime)
+    ! call scribe_init('./',iths,ntime)
   endif !task_id
 
 end subroutine schism_init0
