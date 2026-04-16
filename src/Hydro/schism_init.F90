@@ -276,7 +276,7 @@
         write(16,'(4a)')'Run begins at ',date,', ',timestamp
         write(13,'(a200)')'Time (hours), volume, mass, potential E, kinetic E, total E, friction loss (Joule), energy leak (Joule)'
 !'
-        parallel_abort("quitting early!")
+        call parallel_abort("quitting early!")
       endif
 
 !     Get # of threads for openMP

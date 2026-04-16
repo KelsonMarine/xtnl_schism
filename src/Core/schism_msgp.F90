@@ -542,7 +542,7 @@ subroutine parallel_rrsync(istep)
 !-------------------------------------------------------------------------------
   implicit none
   integer,intent(in) :: istep
-  integer :: ibgn,idsnd,itsnd,idrcv,itrcv
+  integer :: ibgn,idsnd,itsnd,idrcv,itrcv,send_token
 
   ! Handle single processor case
   if(nproc==1) return
@@ -571,7 +571,8 @@ subroutine parallel_rrsync(istep)
     else
       idsnd=0; itsnd=istep; !rank 0 start current step
     endif
-    call mpi_ssend(1,1,itype,idsnd,itsnd,comm,ierr)
+    send_token = 1
+    call mpi_ssend(send_token,1,itype,idsnd,itsnd,comm,ierr)
     if(ierr/=MPI_SUCCESS) then
       write(errmsg,*) 'PARALLEL_RRSYNC: send start msg: ',idsnd,itsnd
       call parallel_abort(errmsg,ierr)
@@ -595,7 +596,8 @@ subroutine parallel_rrsync(istep)
     ! If not last rank then send start msg to next rank
     if(myrank<nproc-1) then
       idsnd=myrank+1; itsnd=abs(istep);
-      call mpi_ssend(1,1,itype,idsnd,itsnd,comm,ierr)
+      send_token = 1
+      call mpi_ssend(send_token,1,itype,idsnd,itsnd,comm,ierr)
       if(ierr/=MPI_SUCCESS) then
         write(errmsg,*) 'PARALLEL_RRSYNC: send start msg: ',idsnd,itsnd
         call parallel_abort(errmsg,ierr)
