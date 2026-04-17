@@ -2087,9 +2087,10 @@
         use schism_glbl, only : rkind,in_dir,len_in_dir
         use schism_msgp, only : myrank
 
-        include 'mpif.h'
 
         implicit none
+
+        include 'mpif.h'
 
         character, intent(in) ::  dataset_name*50
         integer, intent(in) :: max_times, max_files
