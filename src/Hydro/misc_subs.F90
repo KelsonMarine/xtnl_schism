@@ -1017,7 +1017,7 @@
       logical function memory_log_due(it)
       implicit none
 
-      integer, parameter :: mem_log_stride=1
+      integer, parameter :: mem_log_stride=500
       integer, intent(in) :: it
 
       memory_log_due=(it==1.or.mod(it,mem_log_stride)==0)
