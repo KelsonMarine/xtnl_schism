@@ -59,6 +59,8 @@ module schism_glbl
 
   ! For timing
   integer,parameter :: mxtimer=20          ! Max number of wallclock timers
+  integer,parameter :: nreport_timer=14    ! Timers 0:nreport_timer-1 are currently named/output
+  integer,parameter :: timer_scribe_wtimer_tag=703 ! Raw per-step wtimer stacks sent to 2D scribe
   real(rkind),save :: wtimer(0:mxtimer,2)  ! Array of wallclock timers
                                            ! (:,1)=execution time
                                            ! (:,2)=communication time

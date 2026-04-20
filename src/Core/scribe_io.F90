@@ -35,7 +35,7 @@
     module scribe_io
     !Limit global vars to those essentials for communication, as scribe ranks do
     !not have access to other vars read in from .nml etc
-    use schism_glbl, only : rkind,errmsg,natrm,max_ncoutvar
+    use schism_glbl, only : rkind,errmsg,natrm,max_ncoutvar,mxtimer,nreport_timer,timer_scribe_wtimer_tag
     use schism_msgp, only : comm_schism,comm_scribe,nproc_schism,nproc_scribe,nscribes, &
   &myrank_scribe,myrank_schism,rtype,itype,parallel_abort
     use netcdf
@@ -54,11 +54,14 @@
 
     integer,save :: ifile,ihfskip,nspool,nc_out,nvrt,nproc_compute,np_global,ne_global,ns_global, &
   &np_max,ne_max,ns_max,ncount_2dnode,ncount_2delem,ncount_2dside,ncount_3dnode,ncount_3delem,ncount_3dside, &
-  &iths0,ncid_schism_2d,ncid_schism_3d,istart_sed_3dnode,start_year,start_month,start_day, ics,iof_ugrid
+  &iths0,ncid_schism_2d,ncid_schism_3d,istart_sed_3dnode,start_year,start_month,start_day, ics,iof_ugrid, &
+  &ncid_timer=-1,timer_rank_dim,timer_index_dim,timer_time_dim,timer_time_id,timer_step_id,timer_rank_id, &
+  &timer_index_id,timer_wtimer_id,timer_kind_dim,timer_kind_id,timer_ifile=0,timer_last_step
     !Output flag dim must be same as schism_init!
     integer,save :: ntrs(natrm),iof_hydro(40),iof_wwm(40),iof_cos(20),iof_fib(5), &
   &iof_sed2d(14),iof_ice(10),iof_ana(20),iof_marsh(2),counter_out_name,nout_icm_3d(2)
     real(rkind), save :: dt,h0,start_hour,utc_start
+    logical,save :: timer_file_open=.false.
     character(len=20), save :: out_name(max_ncoutvar)
     integer, save :: iout_23d(max_ncoutvar)
     character(len=1000),save :: out_dir
@@ -67,11 +70,12 @@
 
     integer,save,allocatable :: np(:),ne(:),ns(:),iplg(:,:),ielg(:,:),islg(:,:),kbp00(:), &
   &i34(:),elnode(:,:),rrqst2(:),ivar_id2(:),iof_gen(:),iof_age(:),iof_sed(:),iof_eco(:), &
-  &iof_dvd(:),isidenode(:,:)
+  &iof_dvd(:),isidenode(:,:),timer_rank(:),timer_index(:)
     real(rkind),save,allocatable :: xnd(:),ynd(:),dp(:),xel(:),yel(:),xsd(:),ysd(:)
     real(4),save,allocatable :: var2dnode(:,:,:),var2dnode_gb(:,:),var2delem(:,:,:),var2delem_gb(:,:), &
   &var2dside(:,:,:),var2dside_gb(:,:),var3dnode(:,:,:),var3dnode_gb(:,:),var3dside(:,:,:),var3dside_gb(:,:), &
   &var3delem(:,:,:),var3delem_gb(:,:)
+    real(rkind),save,allocatable :: timer_trace_wtimer(:,:,:,:),timer_wtimer(:,:,:)
 
     public :: scribe_init
     public :: scribe_step
@@ -363,6 +367,22 @@
         allocate(var3delem(nvrt,ne_max,nproc_compute),var3delem_gb(nvrt,ne_global))
         var3delem(nvrt,ne_max,nproc_compute)=0.
       endif
+
+#ifdef INCLUDE_TIMING
+      if(myrank_schism==nproc_schism-1) then
+        allocate(timer_rank(nproc_compute),timer_index(0:mxtimer),timer_trace_wtimer(0:mxtimer,2,max(1,nspool),nproc_compute), &
+     &timer_wtimer(0:mxtimer,2,nproc_compute))
+        do i=1,nproc_compute
+          timer_rank(i)=i-1
+        enddo
+        do i=0,mxtimer
+          timer_index(i)=i
+        enddo
+        timer_trace_wtimer=0._rkind
+        timer_wtimer=0._rkind
+        timer_last_step=iths0
+      endif
+#endif
        
 !      call mpi_barrier(comm_scribe,ierr)
       if(myrank_scribe==0) write(16,*)'finished scribe_init:',myrank_schism
@@ -846,7 +866,225 @@
       !End of 3D elem
 !------------------
 
+#ifdef INCLUDE_TIMING
+      if(myrank_schism==nproc_schism-1) then
+        itmp5=it-timer_last_step
+        if(itmp5<1.or.itmp5>size(timer_trace_wtimer,3)) call parallel_abort('scribe_step: invalid timer block size')
+
+        do i=1,nproc_compute
+          call mpi_irecv(timer_trace_wtimer(0,1,1,i),size(timer_trace_wtimer(:,:,:,i)),rtype,i-1,timer_scribe_wtimer_tag, &
+     &comm_schism,rrqst2(i),ierr)
+        enddo
+        call mpi_waitall(nproc_compute,rrqst2,MPI_STATUSES_IGNORE,ierr)
+
+        call nc_writeout_timers(itmp5)
+        timer_last_step=it
+      endif
+#endif
+
       end subroutine scribe_step
+
+!===============================================================================
+      subroutine nc_writeout_timers(ntrace)
+      implicit none
+
+      integer, intent(in) :: ntrace
+
+      integer :: i,j,iret,irec,step_id
+      real(rkind) :: time_value(1)
+      integer :: step_value(1)
+
+      if(ntrace<1) return
+
+      do j=1,ntrace
+        step_id=timer_last_step+j
+
+        call open_timer_file(step_id)
+        irec=step_id-(timer_ifile-1)*ihfskip
+        if(irec<=0.or.irec>ihfskip) call parallel_abort('nc_writeout_timers: invalid record index')
+
+        time_value(1)=dble(step_id*dt)
+        step_value(1)=step_id
+        do i=1,nproc_compute
+          timer_wtimer(:,:,i)=timer_trace_wtimer(:,:,j,i)
+        enddo
+
+        data_start_1d(1)=irec
+        data_count_1d(1)=1
+        iret=nf90_put_var(ncid_timer,timer_time_id,time_value,data_start_1d,data_count_1d)
+        if(iret/=NF90_NOERR) call parallel_abort('nc_writeout_timers: put time')
+        iret=nf90_put_var(ncid_timer,timer_step_id,step_value,data_start_1d,data_count_1d)
+        if(iret/=NF90_NOERR) call parallel_abort('nc_writeout_timers: put it')
+
+        data_start_4d=(/1,1,1,irec/)
+        data_count_4d=(/mxtimer+1,2,nproc_compute,1/)
+        iret=nf90_put_var(ncid_timer,timer_wtimer_id,timer_wtimer,data_start_4d,data_count_4d)
+        if(iret/=NF90_NOERR) call parallel_abort('nc_writeout_timers: put wtimer')
+
+        iret=nf90_sync(ncid_timer)
+        if(iret/=NF90_NOERR) call parallel_abort('nc_writeout_timers: sync')
+
+        if(mod(step_id,ihfskip)==0) then
+          iret=nf90_close(ncid_timer)
+          if(iret/=NF90_NOERR) call parallel_abort('nc_writeout_timers: close')
+          timer_file_open=.false.
+          timer_ifile=0
+          ncid_timer=-1
+        endif
+      enddo
+
+      end subroutine nc_writeout_timers
+
+!===============================================================================
+      subroutine open_timer_file(step_id)
+      implicit none
+
+      integer, intent(in) :: step_id
+
+      integer :: iret,ifile_local
+      integer :: rank_dims(1),index_dims(1),kind_dims(1),time_dims_local(1),timer_dims(4)
+      character(len=140) :: fname
+      character(len=12) :: ifile_char
+
+      ifile_local=(step_id-1)/ihfskip+1
+
+      if(timer_file_open.and.timer_ifile==ifile_local) return
+
+      if(timer_file_open) then
+        iret=nf90_close(ncid_timer)
+        if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: close previous file')
+        timer_file_open=.false.
+        timer_ifile=0
+        ncid_timer=-1
+      endif
+
+      write(ifile_char,'(i12)') ifile_local
+      fname=trim(adjustl(out_dir))//'/timers_'//trim(adjustl(ifile_char))//'.nc'
+      iret=nf90_create(trim(adjustl(fname)),OR(NF90_NETCDF4,NF90_CLOBBER),ncid_timer)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: create')
+      timer_file_open=.true.
+      timer_ifile=ifile_local
+
+      iret=nf90_put_att(ncid_timer,NF90_GLOBAL,'title','SCHISM per-timestep timer traces')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: title')
+      iret=nf90_put_att(ncid_timer,NF90_GLOBAL,'history','Created '//trim(iso8601_now()))
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: history')
+      iret=nf90_put_att(ncid_timer,NF90_GLOBAL,'comment', &
+     &'Per-timestep timer traces buffered on compute ranks and delivered to the 2D scribe at output cadence.')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: comment')
+      iret=nf90_put_att(ncid_timer,NF90_GLOBAL,'send_cadence_steps',nspool)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: send cadence')
+
+      iret=nf90_def_dim(ncid_timer,'nSCHISM_timer',mxtimer+1,timer_index_dim)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer dim')
+      iret=nf90_def_dim(ncid_timer,'nSCHISM_timer_kind',2,timer_kind_dim)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer kind dim')
+      iret=nf90_def_dim(ncid_timer,'nSCHISM_rank',nproc_compute,timer_rank_dim)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: rank dim')
+      iret=nf90_def_dim(ncid_timer,'time',NF90_UNLIMITED,timer_time_dim)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: time dim')
+
+      time_dims_local(1)=timer_time_dim
+      iret=nf90_def_var(ncid_timer,'time',NF90_DOUBLE,time_dims_local,timer_time_id)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: time var')
+      iret=nf90_put_att(ncid_timer,timer_time_id,'long_name','simulation time')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: time long_name')
+      iret=nf90_put_att(ncid_timer,timer_time_id,'units',trim(isotimestring))
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: time units')
+
+      iret=nf90_def_var(ncid_timer,'it',NF90_INT,time_dims_local,timer_step_id)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: it var')
+      iret=nf90_put_att(ncid_timer,timer_step_id,'long_name','SCHISM time step index')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: it long_name')
+
+      rank_dims(1)=timer_rank_dim
+      iret=nf90_def_var(ncid_timer,'rank',NF90_INT,rank_dims,timer_rank_id)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: rank var')
+      iret=nf90_put_att(ncid_timer,timer_rank_id,'long_name','Compute rank in comm_schism')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: rank long_name')
+
+      index_dims(1)=timer_index_dim
+      iret=nf90_def_var(ncid_timer,'timer_index',NF90_INT,index_dims,timer_index_id)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer index var')
+      iret=nf90_put_att(ncid_timer,timer_index_id,'long_name','Timer index matching timer_* global attributes')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer index long_name')
+
+      kind_dims(1)=timer_kind_dim
+      iret=nf90_def_var(ncid_timer,'timer_kind',NF90_INT,kind_dims,timer_kind_id)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer kind var')
+      iret=nf90_put_att(ncid_timer,timer_kind_id,'long_name','Second dimension of raw wtimer')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer kind long_name')
+      iret=nf90_put_att(ncid_timer,timer_kind_id,'kind_1','wtimer(:,1)')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer kind 1')
+      iret=nf90_put_att(ncid_timer,timer_kind_id,'kind_2','wtimer(:,2)')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: timer kind 2')
+
+      timer_dims=(/timer_index_dim,timer_kind_dim,timer_rank_dim,timer_time_dim/)
+      iret=nf90_def_var(ncid_timer,'wtimer_raw',NF90_DOUBLE,timer_dims,timer_wtimer_id)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: wtimer var')
+      iret=nf90_put_att(ncid_timer,timer_wtimer_id,'long_name','Raw cumulative wtimer values sampled once per timestep')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: wtimer long_name')
+      iret=nf90_put_att(ncid_timer,timer_wtimer_id,'units','seconds or raw MPI_Wtime stamps')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: wtimer units')
+      iret=nf90_put_att(ncid_timer,timer_wtimer_id,'comment', &
+     &'This is the raw in-memory wtimer array. Entries such as wtimer(0,1) and wtimer(2,1) remain live start stamps until finalize.')
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: wtimer comment')
+
+      call add_timer_attributes(ncid_timer)
+
+      iret=nf90_enddef(ncid_timer)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: enddef')
+      iret=nf90_put_var(ncid_timer,timer_rank_id,timer_rank)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: put rank')
+      iret=nf90_put_var(ncid_timer,timer_index_id,timer_index)
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: put timer index')
+      iret=nf90_put_var(ncid_timer,timer_kind_id,(/1,2/))
+      if(iret/=NF90_NOERR) call parallel_abort('open_timer_file: put timer kind')
+
+      end subroutine open_timer_file
+
+!===============================================================================
+      subroutine add_timer_attributes(ncid)
+      implicit none
+
+      integer, intent(in) :: ncid
+      integer :: iret
+
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_00','Total')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_00')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_01','Init Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_01')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_02','Timestepping Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_02')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_03','Forcings & Prep Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_03')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_04','Backtracking Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_04')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_05','Turbulence Closure Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_05')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_06','Matrix Preparation Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_06')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_07','Wave-Cont. Solver Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_07')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_08','Momentum Eqs. Solve Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_08')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_09','Transport Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_09')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_10','Recomputing Levels Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_10')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_11','Conservation Check Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_11')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_12','Global Output Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_12')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'timer_13','Hotstart Section')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: timer_13')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'named_timer_count',nreport_timer)
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: named_timer_count')
+      iret=nf90_put_att(ncid,NF90_GLOBAL,'unnamed_timer_note', &
+     &'Indices >= named_timer_count are reserved slots in wtimer and may remain zero.')
+      if(iret/=NF90_NOERR) call parallel_abort('add_timer_attributes: unnamed_timer_note')
+
+      end subroutine add_timer_attributes
 
 !===============================================================================
       subroutine nc_writeout2D(it,np_gb,ne_gb,ns_gb,ncount_p,ncount_e,ncount_s, &
@@ -1779,6 +2017,17 @@
 !===============================================================================
       subroutine scribe_finalize
       implicit none
+      integer :: iret
+
+#ifdef INCLUDE_TIMING
+      if(myrank_schism==nproc_schism-1.and.timer_file_open) then
+        iret=nf90_close(ncid_timer)
+        if(iret/=NF90_NOERR) call parallel_abort('scribe_finalize: close timer file')
+        timer_file_open=.false.
+        timer_ifile=0
+        ncid_timer=-1
+      endif
+#endif
 
       end subroutine scribe_finalize
 

@@ -174,6 +174,10 @@
       real(rkind) :: dtrdz,apTpxy_up,apTpxy_do,epsffs,epsfbot !8022 +epsffs,epsfbot
 !0821...
       real(rkind) :: wtime_start
+#ifdef INCLUDE_TIMING
+      integer,save :: timer_trace_count=0
+      real(rkind),save,allocatable :: timer_trace_wtimer(:,:,:)
+#endif
 
 !     Output handles
       character(len=72) :: it_char
@@ -384,6 +388,17 @@
 
 !     Broadcast to global module
       time_stamp=time; it_main=it
+
+#ifdef INCLUDE_TIMING
+#ifndef OLDIO
+      if(nc_out>0) then
+        if(.not.allocated(timer_trace_wtimer)) then
+          allocate(timer_trace_wtimer(0:mxtimer,2,max(1,nspool)))
+          timer_trace_wtimer=0._rkind
+        endif
+      endif
+#endif
+#endif
 
 #ifdef USE_MICE
       call clock_newyear                        ! check if it is a new year
@@ -10877,6 +10892,22 @@
 ! End hotstart output section
       wtmp2=mpi_wtime()
       wtimer(13,1)=wtimer(13,1)+wtmp2-wtmp1
+
+#ifndef OLDIO
+      if(nc_out>0) then
+        timer_trace_count=timer_trace_count+1
+        if(.not.allocated(timer_trace_wtimer)) call parallel_abort('STEP: timer trace buffers not allocated')
+        if(timer_trace_count>size(timer_trace_wtimer,3)) call parallel_abort('STEP: timer trace buffer overflow')
+        timer_trace_wtimer(:,:,timer_trace_count)=wtimer
+      endif
+
+      if(nc_out>0.and.mod(it,nspool)==0) then
+        if(timer_trace_count<1) call parallel_abort('STEP: empty timer trace block')
+
+        call mpi_send(timer_trace_wtimer,size(timer_trace_wtimer),rtype,iscribe_2d,timer_scribe_wtimer_tag,comm_schism,ierr)
+        timer_trace_count=0
+      endif
+#endif
 #endif
 
       call parallel_barrier !synchronize before starting next time step
