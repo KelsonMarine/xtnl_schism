@@ -173,7 +173,7 @@
 !Tsinghua group: 0821...
       real(rkind) :: dtrdz,apTpxy_up,apTpxy_do,epsffs,epsfbot !8022 +epsffs,epsfbot
 !0821...
-      real(rkind) :: wtime_start
+      real(rkind) :: wtime_start, wtime_wwmstart
 #ifdef INCLUDE_TIMING
       integer,save :: timer_trace_count=0
       real(rkind),save,allocatable :: timer_trace_wtimer(:,:,:)
@@ -872,7 +872,7 @@
 
 
       if(mod(it,nstep_wwm)==0) then
-        wtmp1=mpi_wtime()
+        wtime_wwmstart=mpi_wtime()
         if(myrank==0) write(16,*)'starting WWM'
         !Overwrite SCHISM's RADFLAG by WWM's
         call WWM_II(it,icou_elfe_wwm,dt,nstep_wwm,RADFLAG)
@@ -912,7 +912,7 @@
         sum2=sum(wwave_force)
         sum3=sum(out_wwm(:,1:35))
 
-        if(myrank==0) write(16,*)'WWM-RS part took (sec) ',mpi_wtime()-wtmp1,sum1,sum2,sum3
+        if(myrank==0) write(16,*)'WWM-RS part took (sec) ',mpi_wtime()-wtime_wwmstart,sum1,sum2,sum3
 
         if(sum1/=sum1.or.sum2/=sum2.or.sum3/=sum3) then
           if(sum1/=sum1) then
